@@ -19,8 +19,8 @@ library(ncdf4) #needed for loading netcdf data
 library(raster)
 library(sf)
 
-file.loc = "C:/Users/HOURS/Desktop/PDM/Code_R/Data/Climate_data/TmaxD_1991_2017_ch01r.swisscors.zip"
-file.save = "C:/Users/HOURS/Desktop/PDM/Code_R/Data/Climate_data/1991_2017_JJA_climate_data.csv"
+file.loc = "C:/Users/HOURS/Desktop/PDM/Code_R/Data/Climate_data/TmaxD_71_1990_ch01r.swisscors.zip"
+file.save = "C:/Users/HOURS/Desktop/PDM/Code_R/Data/Climate_data/1971_1990_JJA_climate_data.csv"
 
 file_list = unzip(file.loc, list = TRUE)
 
@@ -32,7 +32,7 @@ bisextile <-seq(1972, 2020, 4)
 #to store date and date id
 date_mapping <- data.frame(date = character(), date_id = integer(), stringsAsFactors = FALSE)
 
-last_date_id = 1840 #insider knowledge
+last_date_id = 0
 
 for(f in my_files){
   
@@ -46,11 +46,11 @@ for(f in my_files){
   
   if (year %in% bisextile){
     
-    my_dat <- my_dat_raw[[153:244]] #otherwise 153:244
+    my_dat <- my_dat_raw[[153:244]] 
     
   } else {
     
-    my_dat <- my_dat_raw[[152:243]] #otherwise 153:244
+    my_dat <- my_dat_raw[[152:243]] 
   }
   
   #extracting geographical coordinates 
@@ -67,8 +67,6 @@ for(f in my_files){
   names(my_data) <- c('longitude', 'latitude')
   
   my_data = my_data %>% #creates an id column such that each pair "latitude-longitude"
-    mutate(longitude = signif(longitude, 4), #is uniquely associated to an id (from 1 to 1127)
-           latitude = signif(latitude, 4)) %>%
     group_by(longitude, latitude) %>%
     dplyr::mutate(id = cur_group_id())
   
@@ -91,6 +89,8 @@ for(f in my_files){
                 longitude = sf::st_coordinates(points_within_switzerland)[,1],
                 latitude = sf::st_coordinates(points_within_switzerland)[,2])
   
+  locs = locs %>% distinct()
+  
   #restricts to points inside Switzerland  
   all_data <- all_data %>%
     right_join(locs, by = 'id') %>%
@@ -98,7 +98,7 @@ for(f in my_files){
     tidyr::pivot_longer(c(-longitude, -latitude), names_to = "date", values_to = "maxtp") %>%
     mutate(date = lubridate::ymd(date))
   
-  #doing a date mapping 
+  #Adding an index for the date
   
   num_dates <- length(unique(all_data$date))
   current_dates <- unique(all_data$date)
@@ -112,30 +112,36 @@ for(f in my_files){
   #adding the date index to the dataframe
   
   all_data_with_id <- all_data %>%
-    left_join(new_mapping, by = "date") %>%  # Add the date ID
-    select(-date) %>%  # Remove the original date column
+    left_join(new_mapping, by = "date") # Add the date ID
+  
+  all_data_with_id <- all_data_with_id %>% #deleted the 3rd column, associated with date (not awesome but nothing else really worked)
+    dplyr::select(-3)
+  
+  all_data_with_id <- all_data_with_id%>%
     group_by(longitude, latitude) %>%
     mutate(id = cur_group_id()) %>% #guarantees correpondance id - lon lat is unique across files
     ungroup() %>%
     mutate(maxtp = round(maxtp, 2))
   
-  if (!file.exists("Data/id_lon_lat_correspondance.csv")){
-    #to ensure each row is unique
+  if (!file.exists("Data/id_lon_lat_correspondance_1971.csv")){
+    
     id_loc <- all_data_with_id %>%
       select(longitude, latitude, id) %>%
       distinct()
-    write.csv(id_loc, "Data/id_lon_lat_correspondance.csv", row.names = FALSE)
+    
+    write.csv(id_loc, "Data/id_lon_lat_correspondance_1971.csv", row.names = FALSE)
   }
   
   # Write only the date ID column in a CSV
   all_data_with_id %>%
-    select(date_id, maxtp, id) %>%  # Choose the columns to save
+    dplyr::select(date_id, maxtp, id) %>%  # Choose the columns to save
     write.table(file.save,
                 sep = ",",
                 col.names = !file.exists(file.save),
                 append = TRUE,
                 row.names = FALSE)
+  
+  print(nrow(all_data_with_id)) #sanity check
 }
 
-#write.table(date_mapping, "Data/Climate_data/id_date_correspondance.csv", sep = ",", col.names = FALSE, row.names = FALSE, append = TRUE)
-
+write.table(date_mapping, "Data/Climate_data/id_date_correspondance.csv", sep = ",", col.names = TRUE, row.names = FALSE, append = TRUE)

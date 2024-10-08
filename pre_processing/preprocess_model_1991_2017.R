@@ -19,24 +19,29 @@ library(ncdf4) #needed for loading netcdf data
 library(raster)
 library(sf)
 
-file.loc = "C:/Users/HOURS/Desktop/PDM/Code_R/Data/Climate_data/TmaxD_ch01r.swisscors_201901010000_201912310000.nc"
-file.save = "C:/Users/HOURS/Desktop/PDM/Code_R/Data/Climate_data/2019_JJA_climate_data.csv"
+file.loc = "C:/Users/HOURS/Desktop/PDM/Code_R/Data/Climate_data/TmaxD_1991_2017_ch01r.swisscors.zip"
+file.save = "C:/Users/HOURS/Desktop/PDM/Code_R/Data/Climate_data/1991_2017_JJA_climate_data.csv"
 
-my_files = list(file.loc)
+file_list = unzip(file.loc, list = TRUE)
 
+my_files = file_list$Name
+
+#bisextile years
 bisextile <-seq(1972, 2020, 4)
 
 #to store date and date id
 date_mapping <- data.frame(date = character(), date_id = integer(), stringsAsFactors = FALSE)
 
-last_date_id = 4416 #insider knowledge
+last_date_id = 1840 #insider knowledge
 
 for(f in my_files){
   
-  my_dat_raw = raster::brick(f)
+  f_unzip = unzip(file.loc, files = f, exdir=tempdir())
   
-  #extracting JJA months
-    
+  my_dat_raw = raster::brick(f_unzip)
+  
+  #extracting JJA months depending on bisextile year or not
+  
   year <- as.numeric(substr(f, 23, 26))
   
   if (year %in% bisextile){
@@ -62,8 +67,6 @@ for(f in my_files){
   names(my_data) <- c('longitude', 'latitude')
   
   my_data = my_data %>% #creates an id column such that each pair "latitude-longitude"
-    mutate(longitude = signif(longitude, 4), #is uniquely associated to an id (from 1 to 1127)
-           latitude = signif(latitude, 4)) %>%
     group_by(longitude, latitude) %>%
     dplyr::mutate(id = cur_group_id())
   
@@ -85,6 +88,8 @@ for(f in my_files){
   locs = tibble(id = points_within_switzerland$id,
                 longitude = sf::st_coordinates(points_within_switzerland)[,1],
                 latitude = sf::st_coordinates(points_within_switzerland)[,2])
+  
+  locs = locs %>% distinct()
   
   #restricts to points inside Switzerland  
   all_data <- all_data %>%
@@ -112,24 +117,27 @@ for(f in my_files){
     group_by(longitude, latitude) %>%
     mutate(id = cur_group_id()) %>% #guarantees correpondance id - lon lat is unique across files
     ungroup() %>%
-    mutate(maxtp = round(maxtp, 2)) 
+    mutate(maxtp = round(maxtp, 2))
   
-  if (!file.exists("Data/id_lon_lat_correspondance.csv")){
+  if (!file.exists("Data/id_lon_lat_correspondance_1991.csv")){
     #to ensure each row is unique
     id_loc <- all_data_with_id %>%
       select(longitude, latitude, id) %>%
       distinct()
-    write.csv(id_loc, "Data/id_lon_lat_correspondance.csv", row.names = FALSE)
+    write.csv(id_loc, "Data/id_lon_lat_correspondance_1991.csv", row.names = FALSE)
   }
   
-   #Write only the date ID column in a CSV
+  # Write only the date ID column in a CSV
   all_data_with_id %>%
     select(date_id, maxtp, id) %>%  # Choose the columns to save
     write.table(file.save,
-    sep = ",",
-    col.names = !file.exists(file.save),
-    append = TRUE,
-    row.names = FALSE)
+                sep = ",",
+                col.names = !file.exists(file.save),
+                append = TRUE,
+                row.names = FALSE)
+  
+  print(nrow(all_data_with_id)) #sanity check
 }
 
-#write.table(date_mapping, "Data/Climate_data/id_date_correspondance.csv", sep = ",", col.names = !file.exists(file.save), col.names = FALSE, row.names = FALSE, append = TRUE)
+write.table(date_mapping, "Data/Climate_data/id_date_correspondance.csv", sep = ",", col.names = FALSE, row.names = FALSE, append = TRUE)
+

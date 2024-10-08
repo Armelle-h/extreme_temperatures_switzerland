@@ -61,7 +61,11 @@ rename_columns <- function(df, year, month) {
   return(df)
 }
 
+index = 0
+
 for(f in my_files){
+  
+  index = index +1
   
   nb_file = nb_file +1
   
@@ -98,8 +102,6 @@ for(f in my_files){
   names(my_data) <- c('longitude', 'latitude')
   
   my_data = my_data %>% #creates an id column such that each pair "latitude-longitude"
-    mutate(longitude = signif(longitude, 4), #is uniquely associated to an id (from 1 to 1127)
-           latitude = signif(latitude, 4)) %>%
     group_by(longitude, latitude) %>%
     dplyr::mutate(id = cur_group_id())
   
@@ -130,6 +132,8 @@ for(f in my_files){
                 longitude = sf::st_coordinates(points_within_switzerland)[,1],
                 latitude = sf::st_coordinates(points_within_switzerland)[,2])
   
+  locs = locs %>% distinct()
+  
   #restricts to points inside Switzerland  
   all_data <- all_data %>%
     right_join(locs, by = 'id') %>%
@@ -158,12 +162,12 @@ for(f in my_files){
     ungroup() %>%
     mutate(maxtp = round(maxtp, 2))
   
-  if (!file.exists("Data/id_lon_lat_correspondance.csv")){
+  if (!file.exists("Data/id_lon_lat_correspondance_2020.csv")){
     #to ensure each row is unique
     id_loc <- all_data_with_id %>%
       select(longitude, latitude, id) %>%
       distinct()
-    write.csv(id_loc, "Data/id_lon_lat_correspondance.csv", row.names = FALSE)
+    write.csv(id_loc, "Data/id_lon_lat_correspondance_2020.csv", row.names = FALSE)
   }
   
   # Write only the date ID column in a CSV
@@ -174,6 +178,8 @@ for(f in my_files){
                 col.names = !file.exists(file.save),
                 append = TRUE,
                 row.names = FALSE)
+  
+  print(nrow(all_data_with_id)) #sanity check
 }
 
-#write.table(date_mapping, "Data/Climate_data/id_date_correspondance.csv", sep = ",", col.names = !file.exists(file.save), col.names = FALSE, row.names = FALSE, append = TRUE)
+write.table(date_mapping, "Data/Climate_data/id_date_correspondance.csv", sep = ",", col.names = FALSE, row.names = FALSE, append = TRUE)

@@ -63,6 +63,7 @@ clim_quantiles = clim_data %>%
   bind_rows() %>%
   as_tibble()
 
+#summarizes clim_quantiles by putting all computed quantiles in a list asociated with location id
 clim_quantiles_subset = clim_quantiles %>%
   group_by(id) %>%
   group_split() %>%
