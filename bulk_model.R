@@ -4,7 +4,7 @@ gc()
 rm(list = ls())
 library(tidyverse)
 library(evgam)
-#setwd("~/Extreme-Irish-Summer-Temperatures/")  #to change
+setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
 num_quantiles = 30
 obs_data = readRDS(paste0("data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))

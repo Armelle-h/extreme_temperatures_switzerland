@@ -3,7 +3,7 @@
 # model grid
 
 rm(list=ls()) 
-#setwd("~/Extreme-Irish-Summer-Temperatures/")  to change
+setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)
 library(gridExtra)
 
@@ -11,11 +11,13 @@ fit_uncorrected_models =T
 fit_true_models = T
 
 #loading the custom functions
-source('src/models/marginal_models/gpd_models.R')
+source('gpd_models.R') #for now, might need to do a bit of relocating
 
-obs_data = vroom::vroom("data/processed/obs_data.csv") %>%
-  left_join(vroom::vroom("data/processed/thresh_exceedance_lambda.csv"))  %>%
+#observed data that has exceeded the threshold
+obs_data = vroom::vroom("data/processed/obs_data_gpd_model.csv") %>%
+  left_join(vroom::vroom("Data/processed/no_covariate_thresh_exceedance_lambda_num_quantiles_30.csv"))  %>%  #lambda associated with observed data, vary the quantile model
   left_join(vroom::vroom("data/processed/obs_data_dist_to_sea.csv") %>% dplyr::select(Station, dist_sea), by = 'Station')
+#covariates I'm adding depending on my choices. In model 0 they only add sigma_c
 
 covars = obs_data %>%
   dplyr::select(Station, year, scale_9, dist_sea, loess_temp_anom, thresh_exceedance_9, threshold_9) %>%
@@ -23,10 +25,15 @@ covars = obs_data %>%
 
 # ----- Fit true model
 if(fit_true_models){
+  
+  #extracting the excess data
   extreme_dat_true = obs_data %>%
     mutate(excess = maxtp - threshold_9) %>%
     filter(excess > 0)
   
+  #fit and save model 0, 1, 2
+  
+  #reminder: scale_9 is the scaling parameter of the climate model (computed in clim_data_gpd_model)
   fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_9)  %>%
     matrix() %>% t() %>% as.data.frame() %>%
     write_csv("output/gpd_model_fits/model_0_true.csv")
@@ -36,12 +43,14 @@ if(fit_true_models){
     matrix() %>% t() %>% as.data.frame() %>%
     write_csv("output/gpd_model_fits/model_1_true.csv")
   
+  
   fit_mod_2(extreme_dat_true$excess, extreme_dat_true$scale_9,
             extreme_dat_true$loess_temp_anom, extreme_dat_true$dist_sea)%>%
     matrix() %>% t() %>% as.data.frame() %>%
     write_csv("output/gpd_model_fits/model_2_true.csv")
 }
 
+#loading the fitted models
 
 model_0_true = readr::read_csv("output/gpd_model_fits/model_0_true.csv") %>%
   rename(b0 = V1, b1 = V2, xi = V3)
@@ -52,7 +61,7 @@ model_1_true = readr::read_csv("output/gpd_model_fits/model_1_true.csv") %>%
 model_2_true = readr::read_csv("output/gpd_model_fits/model_2_true.csv") %>%
   rename(b0 = V1, b1 = V2, b2 = V3, b3 = V4, b4 = V5, xi = V6)
 
-
+#fitting and saving gpd models to bootstrap data
 
 bts_files = list.files("data/processed/bootstrap_data/bts_under_gpd_models/")
 
@@ -62,6 +71,8 @@ if(fit_uncorrected_models){
   for(file_name in bts_files){
     
     print(paste0("fitting to bootstrap ", file_name))
+    
+    #load bootstrap data and merge with covariates
     dat = readRDS(paste0("data/processed/bootstrap_data/bts_under_gpd_models/", file_name))%>%
       mutate(year = lubridate::year(date)) %>%
       left_join(covars %>% dplyr::select(-c(scale_9, threshold_9)), by = c('year', 'Station'))
@@ -71,7 +82,7 @@ if(fit_uncorrected_models){
                          maxtp_1 > 0,
                          maxtp_2 > 0)
     
-    # ----- Model 1
+    # ----- fit Model 0
     obs_data_to_pred = dat %>%
       mutate(excess = maxtp_0 - threshold_9) %>%
       filter(excess > 0)
@@ -83,7 +94,7 @@ if(fit_uncorrected_models){
       write_csv("output/gpd_model_fits/model_0_uncorrected.csv", append = T)
     
     
-    # ----- Model 2
+    # ----- Model 1
     obs_data_to_pred = dat %>%
       mutate(excess = maxtp_1 - threshold_9) %>%
       filter(excess > 0)
@@ -94,7 +105,7 @@ if(fit_uncorrected_models){
       write_csv("output/gpd_model_fits/model_1_uncorrected.csv", append = T)
     
     
-    # ----- Model 4
+    # ----- Model 2
     obs_data_to_pred = dat %>%
       mutate(excess = maxtp_2 - threshold_9) %>%
       filter(excess > 0)
@@ -117,7 +128,6 @@ model_0_xi = model_0_true %>% pull(xi)
 model_1_xi = model_1_true %>% pull(xi)
 model_2_xi = model_2_true %>% pull(xi)
 
-
 model_0_correction = model_0_xi - (read_csv("output/gpd_model_fits/model_0_uncorrected.csv",
                                             col_names = c('bts', 'b0', 'b1', 'xi')) %>%
                                      pull(xi) %>% mean)
@@ -133,7 +143,7 @@ model_2_correction = model_2_xi - (read_csv("output/gpd_model_fits/model_2_uncor
 
 
 
-# ------- fit corrected
+#fit GPD models with corrected parameters
 for(file_name in bts_files){
   
   print(paste0("fitting to bootstrap ", file_name))
@@ -146,7 +156,7 @@ for(file_name in bts_files){
                        maxtp_1 > 0,
                        maxtp_2 > 0)
   
-  # # ----- Model 1
+  #Fit corrected Model 0
   obs_data_to_pred = dat %>%
     mutate(excess = maxtp_0 - threshold_9) %>%
     filter(excess > 0)
@@ -165,7 +175,7 @@ for(file_name in bts_files){
     write_csv("output/gpd_model_fits/model_0_pars_corrected.csv", append = T)
   
   
-  # # ----- Model 2
+  # # ----- Model 1
   obs_data_to_pred = dat %>%
     mutate(excess = maxtp_1 - threshold_9) %>%
     filter(excess > 0)
@@ -184,7 +194,7 @@ for(file_name in bts_files){
   c(file_name, this_fit_mod_1_corrected, (uncorrected_1_xi +  model_1_correction)) %>%
     matrix() %>% t() %>% as.data.frame() %>% write_csv("output/gpd_model_fits/model_1_pars_corrected.csv", append = T)
   
-  # ----- Model 4
+  # ----- Model 2
   obs_data_to_pred = dat %>%
     mutate(excess = maxtp_2 - threshold_9) %>%
     filter(excess > 0)
