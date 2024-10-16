@@ -1,5 +1,3 @@
-gc()
-rm(list = ls())
 library(tidyverse)
 library(evd)
 
@@ -23,7 +21,7 @@ ngll_0 = function(par){
 }
 
 # Function to fit Model 0
-fit_mod_0 = function(this_dat, this_clim_scale, initial_pars = c(0.35 , 0.6, -0.1520767)){
+fit_mod_0 = function(this_dat, this_clim_scale, initial_pars = c(0.95, -0.3, -0.05)){ #-0.21 is the value of the climate scale, 21 is the value of beta0 in the no covariate quantile regression 
   # Set the excess data globally
   excess_dat <<- this_dat
   # Log-transform the climatic scale
@@ -47,14 +45,14 @@ ngll_0_fix_shape = function(par){
 }
 
 # Function to fit Model 0 with fixed shape
-fit_mod_0_fix_shape  = function(this_dat, this_clim_scale, this_shape_est, initial_pars = c(0.35 , 0.6)){
+fit_mod_0_fix_shape  = function(this_dat, this_clim_scale, this_shape_est, initial_pars = c(0.95, -0.3)){
   print(initial_pars) # Print initial parameters for debugging
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale) 
   shape_est <<- this_shape_est
   # Optimize parameters
-  optim(par = c(0.35 , 0.6), fn = ngll_0_fix_shape, control = list(fnscale = -1))$par
+  optim(par = initial_pars, fn = ngll_0_fix_shape, control = list(fnscale = -1))$par
 }
 
 # Function to predict scale and shape from fitted parameters for Model 0
@@ -80,7 +78,7 @@ ngll_1 = function(par){
   if(par[2] < 0) return(2^30) # Return a large penalty if invalid
   
   # Estimate scale parameter with additional climatic factor
-  scale_est = exp(par[1] + par[2]*clim_scale + par[3]*loess_temp_anom)
+  scale_est = exp(par[1] + par[2]*clim_scale + par[3]*glob_anom)
   
   # Shape parameter
   shape_est = par[4]
@@ -95,11 +93,11 @@ ngll_1 = function(par){
 }
 
 # Function to fit Model 1
-fit_mod_1 = function(this_dat, this_clim_scale, this_loess_temp_anom, initial_pars = c(0.3510713,  0.7598344, 0.3735851, -0.1429355)){
+fit_mod_1 = function(this_dat, this_clim_scale, this_glob_anom, initial_pars = c(0.3510713,  0.7598344, 0.3735851, -0.1429355)){
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale)
-  loess_temp_anom <<- this_loess_temp_anom
+  glob_anom <<- this_glob_anom #setting it up as a general parameter so that it can be accessed by the inside of the function
   # Optimize parameters
   optim(par = initial_pars, fn = ngll_1)$par
 }
@@ -110,7 +108,7 @@ ngll_1_fix_shape = function(par){
   if(par[2] < 0) return(2^30) 
   
   # Estimate scale parameter with additional climatic factor
-  scale_est = exp(par[1] + par[2]*clim_scale + par[3]*loess_temp_anom)
+  scale_est = exp(par[1] + par[2]*clim_scale + par[3]*glob_anom)
   
   # Check for valid scale estimates
   if(any(scale_est <= 0)) return(2^30)
@@ -122,26 +120,26 @@ ngll_1_fix_shape = function(par){
 }
 
 # Function to fit Model 1 with fixed shape
-fit_mod_1_fix_shape  = function(this_dat, this_clim_scale, this_loess_temp_anom, this_shape_est, initial_pars = c(0.3510713,  0.7598344, 0.3735851)){
+fit_mod_1_fix_shape  = function(this_dat, this_clim_scale, this_glob_anom, this_shape_est, initial_pars = c(0.3510713,  0.7598344, 0.3735851)){
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale) 
-  loess_temp_anom <<- this_loess_temp_anom
+  glob_anom <<- this_glob_anom
   shape_est <<- this_shape_est
   # Optimize parameters
   optim(par = initial_pars, fn = ngll_1_fix_shape)$par
 }
 
 # Function to predict scale and shape from fitted parameters for Model 1
-my_predict_1 = function(estimates_pars, this_clim_scale, this_loess_temp_anom){
-  tibble(scale = exp(estimates_pars[1] + estimates_pars[2]*log(this_clim_scale) + estimates_pars[3]*this_loess_temp_anom),
+my_predict_1 = function(estimates_pars, this_clim_scale, this_glob_anom){
+  tibble(scale = exp(estimates_pars[1] + estimates_pars[2]*log(this_clim_scale) + estimates_pars[3]*this_glob_anom),
          shape = estimates_pars[4]) # Return predictions as a tibble
 }
 
 # Function to calculate return levels for Model 1
-rl_mod_1 = function(estimates_pars, rl_quantile, thresh, this_clim_scale, this_loess_temp_anom){
+rl_mod_1 = function(estimates_pars, rl_quantile, thresh, this_clim_scale, this_glob_anom){
   # Estimate scale and shape
-  estimated_scale = exp(estimates_pars[1] + estimates_pars[2]*log(this_clim_scale) + estimates_pars[3]*this_loess_temp_anom)
+  estimated_scale = exp(estimates_pars[1] + estimates_pars[2]*log(this_clim_scale) + estimates_pars[3]*this_glob_anom)
   estimated_shape = estimates_pars[4]
   # Calculate return level based on threshold
   return(thresh + estimated_scale * ((1-rl_quantile)^(-estimated_shape) - 1)/estimated_shape)
