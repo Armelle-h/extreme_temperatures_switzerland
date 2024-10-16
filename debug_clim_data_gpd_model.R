@@ -27,17 +27,17 @@ clim_data_extreme_9_list = list()
 for (i in seq_along(files)){
   
   clim_data = fread(files[[i]])
-
+  
   #keeping only temperatures above the associated threshold 0.9 quantile
   sing_clim_data_extreme_9 = clim_data %>%
     group_by(id) %>%
     mutate(threshold = quantile(maxtp, 0.9),
-         excess = maxtp - threshold) %>%
+           excess = maxtp - threshold) %>%
     filter(excess > 0) %>%
     ungroup()
-
+  
   clim_data_extreme_9_list[[i]] = sing_clim_data_extreme_9
-
+  
   #to free memory
   rm(clim_data)
   gc()
@@ -72,7 +72,7 @@ sub_clim_data_extreme_9 = clim_data_extreme_9 %>%
   dplyr::select(id, excess)%>%
   filter(id %% 5 == 0)
 
-#Computes log-likelihood value for potential shape parameter values in parallel (the cluster takes 4 hours to run)
+#Computes log-likelihood value for potential shape parameter values in parallel
 num_cores <- detectCores() - 1
 
 # Create a cluster
@@ -125,67 +125,3 @@ saveRDS(optimal_shape, file = "optimal_shape.rds")
 min_loglik_sum = min(loglik_sum)
 print(min_loglik_sum)
 saveRDS(min_loglik_sum, file = "optimal_loglikelihood.rds")
-
-optimal_shape = readRDS("optimal_shape.rds")
-
-
-#new version , the cluster takes two hours to run
-
-id_clim_data_extreme_9 = clim_data_extreme_9 %>%
-  dplyr::select(id, excess)
-
-#Computes log-likelihood value for potential shape parameter values in parallel
-num_cores <- detectCores() - 1
-
-# Create a cluster
-cl <- makeCluster(num_cores, type = "PSOCK")
-
-clusterEvalQ(cl, library(dplyr))
-
-# Export necessary objects and functions to the workers
-clusterExport(cl, c("id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll", "optimal_shape"))
-
-process_id = function(i, optimal_shape){
-  this_clim_extm_irel_9 <- id_clim_data_extreme_9 %>% filter(id == i) %>% pull(excess)
-  # Estimate scale parameter with the optimal shape parameter
-  model_fit_9 <- estimate_scale_fixed_shape(this_clim_extm_irel_9, optimal_shape)
-  return(model_fit_9$par)
-}
-
-scales_9 <- parLapply(cl, unique(id_clim_data_extreme_9$id), process_id, optimal_shape)
-
-# Stop the cluster after computations are done
-stopCluster(cl)
-
-# Combine results into a vector
-scales_9 <- unlist(scales_9)
-#end of new version
-
-
-saveRDS(scales_9, "scales_9.rds")
-
-# --- save estimates on climate grid
-
-#keeping only location where the temperature is above the associated threshold 0.9 quantile
-clim_data_extreme_9 %>%
-  dplyr::select(id) %>%
-  unique() %>%
-  mutate(scale_9 = scales_9) %>%
-  write_csv("Data/Climate_data/clim_scale_grid_gpd_model.csv")
-
-obs_data = read.csv("Data/Observed_data/1971_2023_JJA_obs_data_loc_id.csv")
-
-obs_sites = obs_data %>%
-  dplyr::select(stn, id) %>%
-  unique()
-
-obs_sites = obs_sites %>%
-  left_join(clim_data_extreme_9 %>%
-              dplyr::select(id) %>%
-              unique() %>%
-              mutate(scale_9 = scales_9) %>%
-              dplyr::select(id, scale_9), by = 'id')
-
-obs_data %>%
-  left_join(obs_sites) %>% 
-  write_csv("Data/Observed_data/obs_data_gpd_model.csv")

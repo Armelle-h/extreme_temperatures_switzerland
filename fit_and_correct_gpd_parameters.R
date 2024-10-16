@@ -2,6 +2,7 @@
 # bootstrap and predicts scale and shape parameter from the GPD on the climate 
 # model grid
 
+gc()
 rm(list=ls()) 
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)

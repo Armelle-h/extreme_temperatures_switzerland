@@ -36,6 +36,8 @@ no_covariate_obs_smoothed_quantiles = readRDS("output/no_covariate_quant_models_
 obs_smoothed_quantiles = readRDS("output/quant_models_num_quantiles_30.csv")
 glob_anom_obs_smoothed_quantiles = readRDS("output/glob_anomaly_quant_models_num_quantiles_30.csv")
 
+altitude_obs_smoothed_quantiles = readRDS("output/altitude_quant_models_num_quantiles_30.csv")
+
 obs_data = read.csv("Data/Observed_data/1971_2023_JJA_obs_data_loc_id.csv")
 
 num_quantiles = 50 
@@ -60,6 +62,8 @@ no_covariate_pred_obs_quantiles <- extract_quantile(no_covariate_obs_smoothed_qu
 pred_obs_quantiles <- extract_quantile(obs_smoothed_quantiles)
 
 glob_anom_pred_obs_quantiles <- extract_quantile(glob_anom_obs_smoothed_quantiles)
+
+altitude_pred_obs_quantiles <- extract_quantile(altitude_obs_smoothed_quantiles)
 
 #the code works because all the lists have the same length
 
@@ -93,6 +97,9 @@ rmse_quantiles = total_rmse(pred_obs_quantiles)
 
 rmse_glob_anom = total_rmse(glob_anom_pred_obs_quantiles)
 
+rmse_altitude = total_rmse(altitude_pred_obs_quantiles)
+
 print(rmse_no_covariates)
 print(rmse_quantiles)
 print(rmse_glob_anom)
+print(rmse_altitude)
