@@ -1,3 +1,7 @@
 *.csv
 *.rds
 *.nc
+*.RData
+*.Rhistory
+
+output\threshold_model_9
