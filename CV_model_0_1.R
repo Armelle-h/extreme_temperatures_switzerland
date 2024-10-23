@@ -125,21 +125,6 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
   
   source('gpd_models.R')
   
-  get_metrics = function(orig_dat, excess, quant, threshold,  pred_scale, pred_shape){
-    likelihood_vals = evd::dgpd(x = excess, loc = 0, scale = pred_scale, shape = pred_shape, log = T)
-    ll = sum(likelihood_vals[!is.infinite(likelihood_vals)])
-    ll_standardised = sum(likelihood_vals[!is.infinite(likelihood_vals)])/length(likelihood_vals[!is.infinite(likelihood_vals)])
-    
-    # - RMSE
-    x = orig_dat
-    y = evd::qgpd(p = quant, loc = threshold, scale = pred_scale, shape = pred_shape[1])
-    
-    my_rmse = sqrt(mean((x-y)^2))
-    scoring = crps(y = excess, family = "gpd", location = 0, scale = pred_scale, shape = pred_shape[1], mass = 0) %>% mean
-    return(paste0(ll, ",", ll_standardised, ",",my_rmse, ",", scoring))
-  }
-  
-  
   if(cv_method == "spatial-temporal"){
     
     extreme_data = obs_data %>%

@@ -62,4 +62,4 @@ obs_data$threshold_9 = quantile_model_fit$location$fitted
 #saves the estimates 0.9 quantile of obs data, estimates unsing regression based on 0.9 climate quantile
 quantile_model_fit %>% saveRDS("output/threshold_model_9") #keeping the folder name output for now
 
-write.csv(obs_data, "Data/Observed_data/1971_2023_JJA_obs_data_bulk_model.csv", row.names = FALSE)
+write.csv(obs_data, "Data/processed/1971_2023_JJA_obs_data_bulk_model.csv", row.names = FALSE)

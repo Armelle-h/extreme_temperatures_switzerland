@@ -4,6 +4,7 @@ gc()
 rm(list = ls())
 library(tidyverse)
 library(evgam)
+library(job)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
 num_quantiles = 30
@@ -138,68 +139,111 @@ lambda_thresh_ex %>%
 
 #NEED TO INVESTIGATE WHAT IS THE CODE BELOW USED FOR !!
 
+#it is used at least in plot_scale for prediction 
+
 # ------------ get splines on clim scale
 
-#Using all locations, might need to switch to locations where threshold is exceeded
-clim_grid = read_csv("Data/id_lon_lat_correspondance.csv")
+#only the locations where the threshold is exceeded
+clim_grid = read_csv("Data/Climate_data/clim_scale_grid_gpd_model.csv")%>%
+  filter(id %% 10 == 0)
 
-clim_quantiles_subset = readRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
-#don't see the point, unless it is to have more flexibility about which localisation data we're considering
+clim_quantiles_subset = readRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))%>%
+  filter(id %% 10 == 0)
+
+#clim_quantiles_subset is defined for all location points, restricting to location points where the threshold is exceeded
 clim_grid = clim_grid %>%
   left_join(clim_quantiles_subset)
 
 
 #climate data with quantile modified
-clim_date_w_quantile_mod = c()
 
-for(i in seq(nrow(clim_grid))){
-  print(clim_grid[i,]) #for debugging
+#BEGIN PARALLELISATION  --takes  minutes
+
+process_chunk <- function(indices, clim_grid, quant_reg_model_pars, quantiles_to_estimate_bulk) { #removed temporal covariate argument
+  results = list()  # List to store results
   
-  # Create data for prediction by merging with temporal covariates
-  this_data_for_pred = tibble(year = c(1960, 1971, 2023, 2024)) %>%
-    #one is before observed range, we have the extremes and one is after the observed range
-    left_join(temporal_covariates) %>%
-    mutate(longitude = clim_grid[i,]$longitude,
-           latitude = clim_grid[i,]$latitude,
-           id = clim_grid[i,]$id,
-           quantile = clim_grid[i,]$quantile,
-           value = clim_grid[i,]$value) 
-  
-  # predict quantile for each year and site
-  quant_reg_pars = quant_reg_model_pars %>%
-    arrange(tau)
-  
-  clim_vals = clim_grid[i,]$value[[1]]
-  res = c()
-  
-  # Loop through each quantile to estimate predicted values
-  for(q in seq_along(quantiles_to_estimate_bulk)){
-    qpars = quant_reg_pars[q,]
-    res = rbind(res,
-                tibble(quantile =  qpars$tau,
-                       year = this_data_for_pred$year,
-                       quant_value = qpars$beta_0 ))
+  for(i in indices) {
+    #print(clim_grid[i,])
+    
+    this_data_for_pred = tibble(year = c(1960, 1971, 2023, 2024)) %>%
+      #left_join(temporal_covariates) %>%  #no need, there's only year in temporal covariates
+      mutate(id = clim_grid[i,]$id,
+             quantile = clim_grid[i,]$quantile,
+             value = clim_grid[i,]$value) 
+    
+    # Predict quantile for each year and site
+    quant_reg_pars = quant_reg_model_pars %>%
+      arrange(tau)
+    
+    clim_vals = clim_grid[i,]$value[[1]]
+    res = c()
+    
+    for(q in seq_along(quantiles_to_estimate_bulk)){
+      qpars = quant_reg_pars[q,]
+      res = rbind(res,
+                  tibble(quantile =  qpars$tau,
+                         year = this_data_for_pred$year,
+                         quant_value = qpars$beta_0))
+    }
+    
+    res = res %>%
+      group_by(year) %>%
+      group_map(~{
+        tibble(year = .x$year[1],
+               #tau_to_temp = list(splinefun(.x$quantile, .x$quant_value, method = 'monoH.FC')),  --> not needed in this code (might regret later but well!)
+               temp_to_tau = list(splinefun(.x$quant_value, .x$quantile, method = 'monoH.FC')))
+      }, .keep = TRUE) %>%
+      plyr::rbind.fill() %>%
+      as_tibble()
+    results[[i]] <- this_data_for_pred %>% left_join(res, by="year")  # Store result for this index
   }
   
-  # Fit splines to interpolate between quantile values
-  #in order to find relationship between tau and temp
-  res = res %>%
-    group_by(year) %>%
-    group_map(~{
-      tibble(year = .x$year[1],
-             tau_to_temp = list(splinefun(.x$quantile,.x$quant_value,  method = 'monoH.FC')),
-             temp_to_tau = list(splinefun(.x$quant_value,.x$quantile,  method = 'monoH.FC')))
-    }, .keep = T) %>%
-    plyr::rbind.fill() %>%
-    as_tibble() 
+  df_result = bind_rows(results)
   
-  # Merge predictions with the grid data
-  #quantile mod as now they are estimated using a regression model (no longer empirical quantile)
-  clim_date_w_quantile_mod = rbind(clim_date_w_quantile_mod, 
-                                   this_data_for_pred %>% left_join(res))
-  
+  return(df_result)  # Combine results from all indices in this chunk
 }
+
+# Get the number of rows in clim_grid
+n <- nrow(clim_grid)
+
+# Create a sequence of indices
+indices <- seq(n)
+
+# Split the indices into 5 chunks
+chunk_size <- ceiling(n / 5)
+chunks <- split(indices, ceiling(seq_along(indices) / chunk_size))
+
+#result_1 is 1.7 gb heavy. suggest doing all the code with a for loop, interating over result_1,...,result_5 and should be good.--> problem for later
+job::job ({
+  result_1 = process_chunk(chunks[[1]], clim_grid[clim_grid$id %in% chunks[[1]], ], quant_reg_model_pars, quantiles_to_estimate_bulk)
+  job::export(result_1)
+  })
+job::job ({
+  result_2 = process_chunk(chunks[[2]], clim_grid[clim_grid$id %in% chunks[[2]], ], quant_reg_model_pars, quantiles_to_estimate_bulk)
+  job::export(result_2)
+  })
+job::job ({
+  result_3 = process_chunk(chunks[[3]], clim_grid[clim_grid$id %in% chunks[[3]], ], quant_reg_model_pars, quantiles_to_estimate_bulk)
+  job::export(result_3)
+  })
+job::job ({
+  result_4 = process_chunk(chunks[[4]], clim_grid[clim_grid$id %in% chunks[[4]], ], quant_reg_model_pars, quantiles_to_estimate_bulk)
+  job::export(result_4)
+  })
+job::job ({
+  result_5 = process_chunk(chunks[[5]], clim_grid[clim_grid$id %in% chunks[[5]], ], quant_reg_model_pars, quantiles_to_estimate_bulk)
+  job::export(result_5)
+  })
+
+#the file is 35GB heavy --> suggest do one out of 5
+results_list = list(result_1, result_2, result_3, result_4, result_5)
+
+# Combine results from all chunks into one data frame
+clim_date_w_quantile_mod <- bind_rows(results_list)
+
+
+#END PARALLELISATION
 
 clim_date_w_quantile_mod %>%
   saveRDS(paste0("output/no_covariate_quant_models_clim_num_quantiles_",num_quantiles,".csv"))
@@ -261,9 +305,9 @@ lambda_thresh_ex = clim_date_w_quantile_mod %>%
 
 #saving result
 lambda_thresh_ex %>% 
-  write_csv(paste0("Data/processed/climate_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv"))
+  write_csv(paste0("Data/processed/no_covariate_climate_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv"))
 
 # Merge lambda results with the main model data and save
 clim_date_w_quantile_mod %>% 
   left_join(lambda_thresh_ex) %>%
-  saveRDS(paste0("output/quant_models_clim_num_quantiles_",num_quantiles,".csv"))
+  saveRDS(paste0("output/no_covariate_quant_models_clim_num_quantiles_",num_quantiles,".csv"))

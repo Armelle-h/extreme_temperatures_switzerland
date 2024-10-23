@@ -9,28 +9,10 @@
 gc()
 rm(list = ls())
 library(tidyverse)
+library(job)
 library(lubridate)
-library(purrr)
-library(future)
-library(future.apply)
 
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
-
-#num_cores <- availableCores() - 1
-#plan(multisession, workers = num_cores)
-
-#reading RDS files takes a long time, parallelising it.
-#rds_files <- list.files(path = "output", pattern = "*.csv", full.names = TRUE)
-
-#data_list <- future_lapply(rds_files, readRDS)
-
-#plan(sequential)
-
-#ran until here
-
-#no_covariate_obs_smoothed_quantiles = data_list[[1]]
-#obs_smoothed_quantiles = data_list[[2]]
-#glob_anom_obs_smoothed_quantiles = data_list[[3]]
 
 no_covariate_obs_smoothed_quantiles = readRDS("output/no_covariate_quant_models_num_quantiles_30.csv")
 obs_smoothed_quantiles = readRDS("output/quant_models_num_quantiles_30.csv")
@@ -38,9 +20,11 @@ glob_anom_obs_smoothed_quantiles = readRDS("output/glob_anomaly_quant_models_num
 
 altitude_obs_smoothed_quantiles = readRDS("output/altitude_quant_models_num_quantiles_30.csv")
 
-obs_data = read.csv("Data/Observed_data/1971_2023_JJA_obs_data_loc_id.csv")
+log_altitude_obs_smoothed_quantiles = readRDS("output/log_altitude_quant_models_num_quantiles_30.csv")
 
-num_quantiles = 50 
+obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv")
+
+num_quantiles = 100 
 quantiles_to_estimate = seq(0.001,0.99,length.out = num_quantiles)
 
 #empirical quantiles of obs_data
@@ -64,6 +48,8 @@ pred_obs_quantiles <- extract_quantile(obs_smoothed_quantiles)
 glob_anom_pred_obs_quantiles <- extract_quantile(glob_anom_obs_smoothed_quantiles)
 
 altitude_pred_obs_quantiles <- extract_quantile(altitude_obs_smoothed_quantiles)
+
+log_altitude_pred_obs_quantiles <- extract_quantile(log_altitude_obs_smoothed_quantiles)
 
 #the code works because all the lists have the same length
 
@@ -99,7 +85,25 @@ rmse_glob_anom = total_rmse(glob_anom_pred_obs_quantiles)
 
 rmse_altitude = total_rmse(altitude_pred_obs_quantiles)
 
+rmse_log_altitude = total_rmse(log_altitude_pred_obs_quantiles)
+
 print(rmse_no_covariates)
 print(rmse_quantiles)
 print(rmse_glob_anom)
 print(rmse_altitude)
+print(rmse_log_altitude)
+
+job::job ({
+  
+  glob_anom_obs_smoothed_quantiles = readRDS("output/glob_anomaly_quant_models_num_quantiles_30.csv")
+  glob_anom_pred_obs_quantiles <- extract_quantile(glob_anom_obs_smoothed_quantiles)
+  rmse_glob_anom = total_rmse(glob_anom_pred_obs_quantiles)
+  job::export(rmse_glob_anom)
+})
+
+job::job({
+  log_altitude_obs_smoothed_quantiles = readRDS("output/log_altitude_quant_models_num_quantiles_30.csv")
+  log_altitude_pred_obs_quantiles <- extract_quantile(log_altitude_obs_smoothed_quantiles)
+  rmse_log_altitude = total_rmse(log_altitude_pred_obs_quantiles)
+  job::export(rmse_log_altitude)
+})

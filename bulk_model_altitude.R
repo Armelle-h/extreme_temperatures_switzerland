@@ -11,7 +11,7 @@ setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 num_quantiles = 30
 obs_data = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
-legend_data = read.csv("Data/Observed_data/1971_2023_JJA_obs_legend.csv")
+legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
 
 #joining obs data with the altitude 
 

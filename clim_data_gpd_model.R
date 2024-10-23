@@ -128,22 +128,13 @@ saveRDS(min_loglik_sum, file = "optimal_loglikelihood.rds")
 
 optimal_shape = readRDS("optimal_shape.rds")
 
+#DO THE SPLINE THING TO GET THE MAX AND THEN RUN THE CODE BELOW
+
 
 #new version , the cluster takes two hours to run
 
 id_clim_data_extreme_9 = clim_data_extreme_9 %>%
   dplyr::select(id, excess)
-
-#Computes log-likelihood value for potential shape parameter values in parallel
-num_cores <- detectCores() - 1
-
-# Create a cluster
-cl <- makeCluster(num_cores, type = "PSOCK")
-
-clusterEvalQ(cl, library(dplyr))
-
-# Export necessary objects and functions to the workers
-clusterExport(cl, c("id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll", "optimal_shape"))
 
 process_id = function(i, optimal_shape){
   this_clim_extm_irel_9 <- id_clim_data_extreme_9 %>% filter(id == i) %>% pull(excess)
@@ -152,13 +143,56 @@ process_id = function(i, optimal_shape){
   return(model_fit_9$par)
 }
 
-scales_9 <- parLapply(cl, unique(id_clim_data_extreme_9$id), process_id, optimal_shape)
+job_process_id = function (indices, optimal_shape){
+  results = list()
+  for (i in indices){
+    results[[i]] = process_id(i, optimal_shape)
+  }
+  
+  df_result = bind_rows(results)
+  return (df_result)
+}
 
-# Stop the cluster after computations are done
-stopCluster(cl)
+indices <- unique(id_clim_data_extreme_9$id)
 
-# Combine results into a vector
-scales_9 <- unlist(scales_9)
+n <- length(unique(id_clim_data_extreme_9$id))
+
+# Create a sequence of indices
+
+
+# Split the indices into 5 chunks
+chunk_size <- ceiling(n / 5)
+chunks <- split(indices, ceiling(seq_along(indices) / chunk_size))
+
+job::job ({
+  result_1 = job_process_id(chunks[[1]], optimal_shape)
+  job::export(result_1)
+})
+
+job::job ({
+  result_2 = job_process_id(chunks[[2]], optimal_shape)
+  job::export(result_2)
+})
+job::job ({
+  result_3 = job_process_id(chunks[[3]], optimal_shape)
+  job::export(result_3)
+})
+job::job ({
+  result_4 = job_process_id(chunks[[4]], optimal_shape)
+  job::export(result_4)
+})
+job::job ({
+  result_5 = job_process_id(chunks[[5]], optimal_shape)
+  job::export(result_5)
+})
+
+
+results_list = list(result_1, result_2, result_3, result_4, result_5)
+
+# Combine results from all chunks into one data frame
+scales_9 <- bind_rows(results_list)
+
+
 #end of new version
 
 
@@ -173,7 +207,7 @@ clim_data_extreme_9 %>%
   mutate(scale_9 = scales_9) %>%
   write_csv("Data/Climate_data/clim_scale_grid_gpd_model.csv")
 
-obs_data = read.csv("Data/Observed_data/1971_2023_JJA_obs_data_loc_id.csv")
+obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv")
 
 obs_sites = obs_data %>%
   dplyr::select(stn, id) %>%
