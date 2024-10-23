@@ -126,9 +126,43 @@ min_loglik_sum = min(loglik_sum)
 print(min_loglik_sum)
 saveRDS(min_loglik_sum, file = "optimal_loglikelihood.rds")
 
-optimal_shape = readRDS("optimal_shape.rds")
-
 #DO THE SPLINE THING TO GET THE MAX AND THEN RUN THE CODE BELOW
+
+potential_shape_values_climate = readRDS("shape_candiates.rds")
+loglik_sum = readRDS("associated_loglikelihood.rds")
+
+spline_loglik <- splinefun(potential_shape_values_climate, loglik_sum, method = "natural")
+
+# Find the minimum of the spline in the range of potential_shape_values_climate
+result <- optimize(spline_loglik, range(potential_shape_values_climate))
+
+# Extract the minimum value and the pre-image (argmin)
+estimated_optimal_loglik <- result$objective
+optimal_shape <- result$minimum
+
+# Display the results
+cat("The minimum loglikelihood is:", estimated_optimal_loglik, "\n") #with this technique the optimal loglik go from 
+cat("The optimal shape is:", optimal_shape, "\n")  #with this technique the optimal shape go from -0.2014286 (before) to -0.2019049 (after). 
+
+
+#computing the associated loglikelihood -- same as below, will have to modify it with jobs, else takes 2 hours to run :(
+
+scales = c()
+loglik = c()
+
+for(i in (clim_data_extreme_9$id %>% unique())){
+  this_clim_extm_irel = clim_data_extreme_9 %>% filter(id == i) %>% pull(excess)
+  
+  model_fit_opt_shape = estimate_scale_fixed_shape(this_clim_extm_irel, optimal_shape)
+  
+  scales = c(scales, model_fit_opt_shape$par)
+  loglik = c(loglik, model_fit_opt_shape$value)
+  
+}
+
+optimal_loglik = c(loglik_sum, sum(loglik))
+
+
 
 
 #new version , the cluster takes two hours to run
