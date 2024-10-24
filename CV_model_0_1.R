@@ -4,6 +4,8 @@
 
 #takes 9 minutes to run
 
+#used to be done for 90 folds, now done for 15 folds 
+
 gc()
 rm(list = ls())
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
@@ -80,7 +82,7 @@ obs_sites_sf = st_as_sf(obs_sites, coords = c("longitude", "latitude"), crs = 43
 #obs_sites_sf <- st_set_geometry(obs_sites_sf, "coord_pts")
 
 #splits data based on coordinates
-num_spatial_folds  = 30
+num_spatial_folds  = 5
 clustered = spatial_clustering_cv(obs_sites_sf, v = num_spatial_folds)
 
 spatial_folds = c()
@@ -190,7 +192,7 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
     
     #cv_method = '10fold'
     # ---------- define random folds
-    num_random_folds = 90
+    num_random_folds = 15
     set.seed(1234567)
     extreme_data$random_fold = sample(seq(num_random_folds), size = nrow(extreme_data), replace = T)
     
@@ -248,4 +250,3 @@ final_metrics_tenfold = tenfold_metrics %>%
     rmse_mean = mean(rmse, na.rm = TRUE),
     crps_mean = mean(crps, na.rm = TRUE)
   )
-

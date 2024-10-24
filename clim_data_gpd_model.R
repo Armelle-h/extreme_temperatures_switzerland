@@ -147,24 +147,6 @@ cat("The optimal shape is:", optimal_shape, "\n")  #with this technique the opti
 
 #computing the associated loglikelihood -- same as below, will have to modify it with jobs, else takes 2 hours to run :(
 
-scales = c()
-loglik = c()
-
-for(i in (clim_data_extreme_9$id %>% unique())){
-  this_clim_extm_irel = clim_data_extreme_9 %>% filter(id == i) %>% pull(excess)
-  
-  model_fit_opt_shape = estimate_scale_fixed_shape(this_clim_extm_irel, optimal_shape)
-  
-  scales = c(scales, model_fit_opt_shape$par)
-  loglik = c(loglik, model_fit_opt_shape$value)
-  
-}
-
-optimal_loglik = c(loglik_sum, sum(loglik))
-
-
-
-
 #new version , the cluster takes two hours to run
 
 id_clim_data_extreme_9 = clim_data_extreme_9 %>%
@@ -174,17 +156,20 @@ process_id = function(i, optimal_shape){
   this_clim_extm_irel_9 <- id_clim_data_extreme_9 %>% filter(id == i) %>% pull(excess)
   # Estimate scale parameter with the optimal shape parameter
   model_fit_9 <- estimate_scale_fixed_shape(this_clim_extm_irel_9, optimal_shape)
-  return(model_fit_9$par)
+  return(list(par = model_fit_9$par, loglik= model_fit_9$value))
 }
 
 job_process_id = function (indices, optimal_shape){
   results = list()
+  loglik_sum = 0
   for (i in indices){
-    results[[i]] = process_id(i, optimal_shape)
+    fun_output = process_id(i, optimal_shape)
+    results[[i]] = fun_output$par
+    loglik_sum = loglik_sum + fun_output$value
   }
   
   df_result = bind_rows(results)
-  return (df_result)
+  return (list(df_combined=df_result, loglik=loglik_sum))
 }
 
 indices <- unique(id_clim_data_extreme_9$id)
@@ -201,34 +186,44 @@ chunks <- split(indices, ceiling(seq_along(indices) / chunk_size))
 job::job ({
   result_1 = job_process_id(chunks[[1]], optimal_shape)
   job::export(result_1)
-})
+}, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
+, packages = c("tidyverse"))
 
 job::job ({
   result_2 = job_process_id(chunks[[2]], optimal_shape)
   job::export(result_2)
-})
+}, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
+, packages = c("tidyverse"))
+
 job::job ({
   result_3 = job_process_id(chunks[[3]], optimal_shape)
   job::export(result_3)
-})
+}, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
+, packages = c("tidyverse"))
+
 job::job ({
   result_4 = job_process_id(chunks[[4]], optimal_shape)
   job::export(result_4)
-})
+}, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
+, packages = c("tidyverse"))
+
 job::job ({
   result_5 = job_process_id(chunks[[5]], optimal_shape)
   job::export(result_5)
-})
+}, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
+, packages = c("tidyverse"))
 
 
-results_list = list(result_1, result_2, result_3, result_4, result_5)
+results_list = list(result_1$df_combined, result_2$df_combined, result_3$df_combined, result_4$df_combined, result_5$df_combined)
 
+loglik_optimal_shape = result_1$loglik + result_2$loglik + result_3$loglik + result_4$loglik + result_5$loglik
 # Combine results from all chunks into one data frame
 scales_9 <- bind_rows(results_list)
 
 
 #end of new version
 
+saveRDS(loglik_optimal_shape, "loglik_optimal_shape.rds")
 
 saveRDS(scales_9, "scales_9.rds")
 
