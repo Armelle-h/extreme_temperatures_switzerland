@@ -165,7 +165,7 @@ job_process_id = function (indices, optimal_shape){
   for (i in indices){
     fun_output = process_id(i, optimal_shape)
     scales = c(scales, fun_output$par)
-    loglik_sum = loglik_sum + fun_output$value
+    loglik_sum = loglik_sum + fun_output$loglik
   }
   
   return (list(scales_=scales, loglik=loglik_sum))
@@ -182,9 +182,6 @@ n <- length(unique(id_clim_data_extreme_9$id))
 chunk_size <- ceiling(n / 5)
 chunks <- split(indices, ceiling(seq_along(indices) / chunk_size))
 
-x=1
-
-if (x==1) { #ugly way to enforce the fact that all jobs need to be complete before moving on
 job::job ({
   result_1 = job_process_id(chunks[[1]], optimal_shape)
   job::export(result_1)
@@ -214,9 +211,6 @@ job::job ({
   job::export(result_5)
 }, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
 , packages = c("tidyverse"))
-}
-
-
 
 loglik_optimal_shape = result_1$loglik + result_2$loglik + result_3$loglik + result_4$loglik + result_5$loglik
 # Combine results from all chunks into one data frame
