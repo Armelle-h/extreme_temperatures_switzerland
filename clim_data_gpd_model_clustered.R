@@ -1,7 +1,3 @@
-#estimating the shape and scale parameter of the tail of the climate data
-#the tail being modeled as a GPD
-#In the paper, we're only interested in the scale parameter so the scale is not saved
-
 gc()
 rm(list = ls())
 library(tidyverse)
@@ -27,17 +23,17 @@ clim_data_extreme_9_list = list()
 for (i in seq_along(files)){
   
   clim_data = fread(files[[i]])
-
+  
   #keeping only temperatures above the associated threshold 0.9 quantile
   sing_clim_data_extreme_9 = clim_data %>%
     group_by(id) %>%
     mutate(threshold = quantile(maxtp, 0.9),
-         excess = maxtp - threshold) %>%
+           excess = maxtp - threshold) %>%
     filter(excess > 0) %>%
     ungroup()
-
+  
   clim_data_extreme_9_list[[i]] = sing_clim_data_extreme_9
-
+  
   #to free memory
   rm(clim_data)
   gc()
@@ -160,15 +156,16 @@ process_id = function(i, optimal_shape){
 }
 
 job_process_id = function (indices, optimal_shape){
-  scales = c()
+  results = list()
   loglik_sum = 0
   for (i in indices){
     fun_output = process_id(i, optimal_shape)
-    scales = c(scales, fun_output$par)
+    results[[i]] = fun_output$par
     loglik_sum = loglik_sum + fun_output$value
   }
   
-  return (list(scales_=scales, loglik=loglik_sum))
+  df_result = bind_rows(results)
+  return (list(df_combined=df_result, loglik=loglik_sum))
 }
 
 indices <- unique(id_clim_data_extreme_9$id)
@@ -182,9 +179,6 @@ n <- length(unique(id_clim_data_extreme_9$id))
 chunk_size <- ceiling(n / 5)
 chunks <- split(indices, ceiling(seq_along(indices) / chunk_size))
 
-x=1
-
-if (x==1) { #ugly way to enforce the fact that all jobs need to be complete before moving on
 job::job ({
   result_1 = job_process_id(chunks[[1]], optimal_shape)
   job::export(result_1)
@@ -214,13 +208,13 @@ job::job ({
   job::export(result_5)
 }, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
 , packages = c("tidyverse"))
-}
 
 
+results_list = list(result_1$df_combined, result_2$df_combined, result_3$df_combined, result_4$df_combined, result_5$df_combined)
 
 loglik_optimal_shape = result_1$loglik + result_2$loglik + result_3$loglik + result_4$loglik + result_5$loglik
 # Combine results from all chunks into one data frame
-scales_9 <- c(result_1$scales_, result_2$scales_, result_3$scales_, result_4$scales_, result_5$scales_)
+scales_9 <- bind_rows(results_list)
 
 
 #end of new version
