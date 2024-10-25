@@ -144,10 +144,91 @@ optimal_shape <- result$minimum
 cat("The minimum loglikelihood is:", estimated_optimal_loglik, "\n") #with this technique the optimal loglik go from 
 cat("The optimal shape is:", optimal_shape, "\n")  #with this technique the optimal shape go from -0.2014286 (before) to -0.2019049 (after). 
 
+#computing the associated loglikelihood ----------------------------------------
 
-#computing the associated loglikelihood -- same as below, will have to modify it with jobs, else takes 2 hours to run :(
 
-#new version , the cluster takes two hours to run
+id_clim_data_extreme_9 = clim_data_extreme_9 %>%
+  dplyr::select(id, excess)%>%
+  filter(id %% 5 == 0)  #for comparison purpose with the other loglikelihoods computed 
+
+process_id = function(i, optimal_shape){
+  this_clim_extm_irel_9 <- id_clim_data_extreme_9 %>% filter(id == i) %>% pull(excess)
+  # Estimate scale parameter with the optimal shape parameter
+  model_fit_9 <- estimate_scale_fixed_shape(this_clim_extm_irel_9, optimal_shape)
+  return(list(par = model_fit_9$par, loglik= model_fit_9$value))
+}
+
+job_process_id = function (indices, optimal_shape){
+  scales = c()
+  loglik_sum = 0
+  for (i in indices){
+    fun_output = process_id(i, optimal_shape)
+    scales = c(scales, fun_output$par)
+    loglik_sum = loglik_sum + fun_output$loglik
+  }
+  
+  return (list(scales_=scales, loglik=loglik_sum))
+}
+
+indices <- unique(id_clim_data_extreme_9$id)
+
+n <- length(unique(id_clim_data_extreme_9$id))
+
+# Create a sequence of indices
+
+
+# Split the indices into 5 chunks
+chunk_size <- ceiling(n / 5)
+chunks <- split(indices, ceiling(seq_along(indices) / chunk_size))
+
+job::job ({
+  result_1_loglik = job_process_id(chunks[[1]], optimal_shape)
+  saveRDS(result_1_loglik, "result_1_loglik.rds")
+  job::export(result_1_loglik)
+}, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
+, packages = c("tidyverse"))
+
+job::job ({
+  result_2_loglik = job_process_id(chunks[[2]], optimal_shape)
+  saveRDS(result_2_loglik, "result_2_loglik.rds")
+  job::export(result_2_loglik)
+}, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
+, packages = c("tidyverse"))
+
+job::job ({
+  result_3_loglik = job_process_id(chunks[[3]], optimal_shape)
+  saveRDS(result_3_loglik, "result_3_loglik.rds")
+  job::export(result_3_loglik)
+}, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
+, packages = c("tidyverse"))
+
+job::job ({
+  result_4_loglik = job_process_id(chunks[[4]], optimal_shape)
+  saveRDS(result_4_loglik, "result_4_loglik.rds")
+  job::export(result_4_loglik)
+}, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
+, packages = c("tidyverse"))
+
+job::job ({
+  result_5_loglik = job_process_id(chunks[[5]], optimal_shape)
+  saveRDS(result_5_loglik, "result_5_loglik.rds")
+  job::export(result_5_loglik)
+}, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
+, packages = c("tidyverse"))
+
+loglik_optimal_shape = result_1_loglik$loglik + result_2_loglik$loglik + result_3_loglik$loglik + result_4_loglik$loglik + result_5_loglik$loglik
+
+saveRDS(loglik_optimal_shape, "optimal_loglikelihood_5_index.rds") #loglikelihood computed on one out of 5 indexes
+
+
+
+
+
+#end of computing the associated loglikelihood ----------------------------------
+
+#new version , the cluster takes two hours to run --> no use computing the associated loglikelihood to compare it to the others 
+#since the other was computed on one id out of 5 and here we consider all ids. It would be useful to have a result it and of 
+#itself 
 
 id_clim_data_extreme_9 = clim_data_extreme_9 %>%
   dplyr::select(id, excess)
@@ -184,30 +265,35 @@ chunks <- split(indices, ceiling(seq_along(indices) / chunk_size))
 
 job::job ({
   result_1 = job_process_id(chunks[[1]], optimal_shape)
+  saveRDS(result_1, "result_1.rds")
   job::export(result_1)
 }, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
 , packages = c("tidyverse"))
 
 job::job ({
   result_2 = job_process_id(chunks[[2]], optimal_shape)
+  saveRDS(result_2, "result_2.rds")
   job::export(result_2)
 }, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
 , packages = c("tidyverse"))
 
 job::job ({
   result_3 = job_process_id(chunks[[3]], optimal_shape)
+  saveRDS(result_3, "result_3.rds")
   job::export(result_3)
 }, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
 , packages = c("tidyverse"))
 
 job::job ({
   result_4 = job_process_id(chunks[[4]], optimal_shape)
+  saveRDS(result_4, "result_4.rds")
   job::export(result_4)
 }, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
 , packages = c("tidyverse"))
 
 job::job ({
   result_5 = job_process_id(chunks[[5]], optimal_shape)
+  saveRDS(result_5, "result_5.rds")
   job::export(result_5)
 }, import=c("job_process_id", "chunks", "optimal_shape", "process_id", "id_clim_data_extreme_9", "estimate_scale_fixed_shape", "ngll")
 , packages = c("tidyverse"))
@@ -219,7 +305,7 @@ scales_9 <- c(result_1$scales_, result_2$scales_, result_3$scales_, result_4$sca
 
 #end of new version
 
-saveRDS(loglik_optimal_shape, "loglik_optimal_shape.rds")
+saveRDS(loglik_optimal_shape, "loglik_optimal_shape.rds") #loglikelihood computed for all indexes 
 
 saveRDS(scales_9, "scales_9.rds")
 

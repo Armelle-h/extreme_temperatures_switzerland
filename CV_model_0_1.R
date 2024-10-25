@@ -53,7 +53,7 @@ glob_anomaly_reshaped = glob_anomaly %>%
                values_to = "glob_anom")%>%
   mutate(month = as.numeric(month))
 
-threshold_9_df = vroom::vroom("Data/Observed_data/1971_2023_JJA_obs_data_bulk_model.csv")%>%
+threshold_9_df = vroom::vroom("Data/Observed_data/1971_2022_JJA_obs_data_bulk_model.csv")%>%
   dplyr::select(threshold_9, id)%>%
   unique()
 
@@ -75,7 +75,7 @@ obs_data <- obs_data %>%
 # -------- CREATE CV Folds
 set.seed(51964)
 
-obs_sites = read.csv("Data/Observed_data/1971_2023_JJA_obs_legend.csv") %>%
+obs_sites = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv") %>%
   select(stn, longitude, latitude)
 
 obs_sites_sf = st_as_sf(obs_sites, coords = c("longitude", "latitude"), crs = 4326)

@@ -1,16 +1,13 @@
 gc() 
 rm(list = ls())
 
-setwd("C:/Users/HOURS/Desktop/PDM/Code_R")
-library(dplyr)
+setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
+library(tidyverse)
 library(lubridate)  # For date manipulation
-library(ggplot2)
 
-raw_data<- read.csv("Data_climate/1940_2023_data.csv", header=TRUE)
-colnames(raw_data)[3] <- "tp" #renaming last column
-data <- raw_data %>%
-  filter(tp != "-")#filtering out rows with missing values
-data$tp <- as.integer(data$tp) #converting last column elements as integers
+data<- read.csv("pre_processing/Data/1971_2022_data.csv", header=TRUE)
+
+data$date <- as.Date(data$date)
 
 # Calculate 95th quantile and filter the dataframe -- should be correct
 data_quantiles <- data %>%
@@ -21,24 +18,16 @@ data_quantiles <- data %>%
 
 #Extract month and count occurrences
 station_monthly_count <- data_quantiles %>%
-  mutate(month = month(as.Date(as.character(time), format = "%Y%m%d"))) %>%
+  mutate(month = month(date)) %>%
   group_by(stn, month) %>%
   summarise(count = n()) %>%
   arrange(stn, month)
 
 monthly_count <- data_quantiles %>%
-  mutate(month = month(as.Date(as.character(time), format = "%Y%m%d"))) %>%
+  mutate(month = month(date)) %>%
   group_by(month) %>%
   summarise(quant_count = n()) %>%
   arrange(month)
-
-# Merge monthly sums with count data to get total number of observations per month
-#-- now is correct
-#total_monthly_count <- data_quantiles %>%
-#  mutate(month = month(as.Date(as.character(time), format = "%Y%m%d"))) %>%
-#  group_by(month) %>%
-#  summarise(total_count=n()) %>%
-#  arrange(month)
 
 total_count <- nrow(data_quantiles)
 
@@ -51,9 +40,15 @@ monthly_perc <- monthly_count %>%
 # Plot the histogram
 ggplot(monthly_perc, aes(x = month, y = percentage)) +
   geom_col(fill = "skyblue") +
-  labs(title = "Proportion extreme event, 95 quantile", 
+  labs(title = "95th quantile", 
        x = "Month", 
-       y = "Proportions") +
-  theme_minimal()
+       y = "Proportion of extreme events") +
+  scale_x_continuous(breaks = c(1, 3, 5, 7, 9, 11),       
+                     labels = c("January", "March", "May", "July", "September", "November")) +  
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
 
-#need to fix the labels of the x axis-- to do later
+#percentage of exceedances occuring in the summer months
+print( sum(monthly_perc[6:8, "quant_count", na.rm=TRUE])*100/sum(monthly_perc$quant_count)  ) #prints 94.62858
+
+

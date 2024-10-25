@@ -20,7 +20,7 @@ obs_data = vroom::vroom("Data/Observed_data/obs_data_gpd_model.csv")
 
 #adding threshold 9 
 
-threshold_9_df = vroom::vroom("Data/Observed_data/1971_2023_JJA_obs_data_bulk_model.csv")%>%
+threshold_9_df = vroom::vroom("Data/Observed_data/1971_2022_JJA_obs_data_bulk_model.csv")%>%
   dplyr::select(threshold_9, id)%>%
   unique()
 
