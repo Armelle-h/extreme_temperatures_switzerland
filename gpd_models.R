@@ -21,7 +21,7 @@ ngll_0 = function(par){
 }
 
 # Function to fit Model 0
-fit_mod_0 = function(this_dat, this_clim_scale, initial_pars = c(0.95, -0.3, -0.05)){ #-0.21 is the value of the climate scale, 21 is the value of beta0 in the no covariate quantile regression 
+fit_mod_0 = function(this_dat, this_clim_scale, initial_pars = c(0.95, -0.3, -0.05)){ 
   # Set the excess data globally
   excess_dat <<- this_dat
   # Log-transform the climatic scale
@@ -45,7 +45,7 @@ ngll_0_fix_shape = function(par){
 }
 
 # Function to fit Model 0 with fixed shape
-fit_mod_0_fix_shape  = function(this_dat, this_clim_scale, this_shape_est, initial_pars = c(0.95, -0.3)){
+fit_mod_0_fix_shape  = function(this_dat, this_clim_scale, this_shape_est, initial_pars = c(0.95, -0.3)){ 
   print(initial_pars) # Print initial parameters for debugging
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
@@ -150,39 +150,82 @@ rl_mod_1 = function(estimates_pars, rl_quantile, thresh, this_clim_scale, this_g
 # Function to compute the negative log-likelihood for Model 2
 ngll_2 = function(par){
   # Estimate scale parameter with additional climatic and geographic factors
-  scale_est = exp(par[1] + par[2]*clim_scale + par[3]*dist_sea + par[4]*loess_temp_anom + par[5]*dist_sea*loess_temp_anom) 
+  scale_est = exp(par[1] + par[2]*clim_scale + par[3]*altitude + par[4]*glob_anom + par[5]*altitude*glob_anom) 
   shape_est = par[6]
   
   # Check for valid scale estimates
-  if(any(scale_est <= 0)) return(2^30)
-  if(any(scale_est > -1/shape_est)) return(2^30)
-  if(any((1+shape_est*excess_dat/scale_est)< 0)) return(2^30)
+  if(any(scale_est <= 0) || any(is.na(scale_est))) return(2^30)
+  if(any(scale_est > -1/shape_est) || any(is.na(scale_est))) return(2^30)
+  if(any((1+shape_est*excess_dat/scale_est)< 0) || any(is.na(scale_est))) return(2^30)
   
   # Calculate the log-likelihood
   -sum(evd::dgpd(x = excess_dat, loc=0, scale = scale_est, shape=shape_est, log=T))
 }
 
 # Function to fit Model 2
-fit_mod_2 = function(this_dat, this_clim_scale, this_loess_temp_anom, this_dist_sea, initial_pars = c( 0.0713, 0.700, 0.0513, 0.123, 0.00117, -0.15)){
+fit_mod_2 = function(this_dat, this_clim_scale, this_glob_anom, this_altitude, initial_pars = c( 0.0713, 0.700, 0.0513, 0.123, 0.00117, -0.15)){
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale)
-  loess_temp_anom <<- this_loess_temp_anom
-  dist_sea <<- this_dist_sea
+  glob_anom <<- this_glob_anom
+  altitude <<- log(this_altitude)
   # Optimize parameters
   optim(par = initial_pars, fn = ngll_2)$par
 }
 
 # Function to predict scale and shape from fitted parameters for Model 2
-my_predict_2 = function(estimates_pars, this_clim_scale, this_loess_temp_anom, this_dist_sea){
-  tibble(scale = exp(estimates_pars[1] + estimates_pars[2]*log(this_clim_scale) + estimates_pars[3]*this_dist_sea + estimates_pars[4]*this_loess_temp_anom + estimates_pars[5]*this_dist_sea*this_loess_temp_anom),
+my_predict_2 = function(estimates_pars, this_clim_scale, this_glob_anom, this_altitude){
+  tibble(scale = exp(estimates_pars[1] + estimates_pars[2]*log(this_clim_scale) + estimates_pars[3]*log(this_altitude) + estimates_pars[4]*this_glob_anom + estimates_pars[5]*log(this_altitude)*this_glob_anom),
          shape = estimates_pars[6]) # Return predictions as a tibble
 }
 
 # Function to compute the negative log-likelihood for Model 2 with fixed shape
-ngll_2_fix_shape = function(par){
+ngll_2_fix_shape = function(par){ #altitude is set globally to log(this altitude)-> no need to add the log
   # Estimate scale parameter with additional climatic and geographic factors
-  scale_est = exp(par[1] + par[2]*clim_scale + par[3]*dist_sea + par[4]*loess_temp_anom + par[5]*dist_sea*loess_temp_anom) 
+  scale_est = exp(par[1] + par[2]*clim_scale + par[3]*altitude + par[4]*glob_anom + par[5]*altitude*glob_anom) 
+  # Check for valid scale estimates
+  if(any(scale_est <= 0) || any(is.na(scale_est))) return(2^30)
+  if(any(scale_est > -1/shape_est) || any(is.na(scale_est))) return(2^30)
+  if(any((1+shape_est*excess_dat/scale_est)< 0) || any(is.na(scale_est))) return(2^30)
+  
+  # Calculate the log-likelihood
+  -sum(evd::dgpd(x = excess_dat, loc=0, scale = scale_est, shape=shape_est, log=T))
+}
+
+# Function to fit Model 2 with fixed shape
+fit_mod_2_fix_shape  = function(this_dat, this_clim_scale, this_glob_anom, this_altitude, this_shape_est, initial_pars = c( 0.0713, 0.700, 0.0513, 0.123, 0.00117)){
+  # Set the excess data and other variables globally
+  excess_dat <<- this_dat
+  clim_scale <<- log(this_clim_scale) 
+  glob_anom <<- this_glob_anom
+  altitude <<- log(this_altitude)
+  shape_est <<- this_shape_est
+  # Optimize parameters
+  optim(par = initial_pars, fn = ngll_2_fix_shape)$par
+}
+
+# Function to calculate return levels for Model 2
+rl_mod_2 = function(estimates_pars, rl_quantile, thresh, this_clim_scale, this_glob_anom, this_altitude){
+  # Estimate scale and shape
+  estimated_scale = exp(estimates_pars[1] + estimates_pars[2]*log(this_clim_scale) + estimates_pars[3]*log(this_altitude) + estimates_pars[4]*this_glob_anom + estimates_pars[5]*log(this_altitude)*this_glob_anom)
+  estimated_shape = estimates_pars[6]
+  # Calculate return level based on threshold
+  return(thresh + estimated_scale * ((1-rl_quantile)^(-estimated_shape) - 1)/estimated_shape)
+}
+
+# - - - - - - - - - - MODEL 3
+
+# Function to compute the negative log-likelihood for Model 1
+ngll_3 = function(par){
+  # Check that the second parameter is non-negative
+  if(par[2] < 0) return(2^30) # Return a large penalty if invalid
+  
+  # Estimate scale parameter with additional climatic factor
+  scale_est = exp(par[1] + par[2]*clim_scale + par[3]*altitude)
+  
+  # Shape parameter
+  shape_est = par[4]
+  
   # Check for valid scale estimates
   if(any(scale_est <= 0)) return(2^30)
   if(any(scale_est > -1/shape_est)) return(2^30)
@@ -192,23 +235,55 @@ ngll_2_fix_shape = function(par){
   -sum(evd::dgpd(x = excess_dat, loc=0, scale = scale_est, shape=shape_est, log=T))
 }
 
-# Function to fit Model 2 with fixed shape
-fit_mod_2_fix_shape  = function(this_dat, this_clim_scale, this_loess_temp_anom, this_dist_sea, this_shape_est, initial_pars = c( 0.0713, 0.700, 0.0513, 0.123, 0.00117)){
+# Function to fit Model 1
+fit_mod_3 = function(this_dat, this_clim_scale, this_altitude, initial_pars = c(0.1,  0.5, 0.2, -0.037)){#used to be c(0.3510713,  0.7598344, 0.3735851, -0.1429355)
+  # Set the excess data and other variables globally
+  excess_dat <<- this_dat
+  clim_scale <<- log(this_clim_scale)
+  altitude <<- log(this_altitude) #setting it up as a general parameter so that it can be accessed by the inside of the function
+  # Optimize parameters
+  optim(par = initial_pars, fn = ngll_3)$par
+}
+
+# Function to compute the negative log-likelihood for Model 1 with fixed shape
+ngll_3_fix_shape = function(par){
+  # Check that the second parameter is non-negative
+  if(par[2] < 0) return(2^30) 
+  
+  # Estimate scale parameter with additional climatic factor
+  scale_est = exp(par[1] + par[2]*clim_scale + par[3]*altitude)
+  
+  # Check for valid scale estimates
+  if(any(scale_est <= 0)) return(2^30)
+  if(any(scale_est > -1/shape_est)) return(2^30)
+  if(any((1+shape_est*excess_dat/scale_est)< 0)) return(2^30)
+  
+  # Calculate the log-likelihood
+  -sum(evd::dgpd(x = excess_dat, loc=0, scale = scale_est, shape=shape_est, log=T))
+}
+
+# Function to fit Model 1 with fixed shape
+fit_mod_3_fix_shape  = function(this_dat, this_clim_scale, this_altitude, this_shape_est, initial_pars = c(0.1,  0.5, 0.2)){ #used to be c(0.3510713,  0.7598344, 0.3735851)
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale) 
-  loess_temp_anom <<- this_loess_temp_anom
-  dist_sea <<- this_dist_sea
+  altitude <<- log(this_altitude)
   shape_est <<- this_shape_est
   # Optimize parameters
-  optim(par = initial_pars, fn = ngll_2_fix_shape)$par
+  optim(par = initial_pars, fn = ngll_3_fix_shape)$par
 }
 
-# Function to calculate return levels for Model 2
-rl_mod_2 = function(estimates_pars, rl_quantile, thresh, this_clim_scale, this_loess_temp_anom, this_dist_sea){
+# Function to predict scale and shape from fitted parameters for Model 1
+my_predict_3 = function(estimates_pars, this_clim_scale, this_altitude){
+  tibble(scale = exp(estimates_pars[1] + estimates_pars[2]*log(this_clim_scale) + estimates_pars[3]*log(this_altitude)),
+         shape = estimates_pars[4]) # Return predictions as a tibble
+}
+
+# Function to calculate return levels for Model 1
+rl_mod_3 = function(estimates_pars, rl_quantile, thresh, this_clim_scale, this_altitude){
   # Estimate scale and shape
-  estimated_scale = exp(estimates_pars[1] + estimates_pars[2]*log(this_clim_scale) + estimates_pars[3]*this_dist_sea + estimates_pars[4]*this_loess_temp_anom + estimates_pars[5]*this_dist_sea*this_loess_temp_anom)
-  estimated_shape = estimates_pars[6]
+  estimated_scale = exp(estimates_pars[1] + estimates_pars[2]*log(this_clim_scale) + estimates_pars[3]*log(this_altitude))
+  estimated_shape = estimates_pars[4]
   # Calculate return level based on threshold
   return(thresh + estimated_scale * ((1-rl_quantile)^(-estimated_shape) - 1)/estimated_shape)
 }

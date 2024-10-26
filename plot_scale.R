@@ -14,22 +14,18 @@ threshold_9_df = vroom::vroom("Data/Observed_data/1971_2022_JJA_obs_data_bulk_mo
   unique()
 
 #lambda associated with observed data, vary the quantile model
-lambda_df = vroom::vroom("Data/processed/thresh_exceedance_lambda_num_quantiles_30.csv") 
+lambda_df = vroom::vroom("Data/processed/glob_anomaly_thresh_exceedance_lambda_num_quantiles_30.csv") 
 
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
 
 glob_anomaly_reshaped = glob_anomaly %>%
-  select(-JJA)%>%
-  rename("06" = Jun, "07" = Jul, "08" = Aug)%>%
-  pivot_longer(cols = c("06", "07", "08"), 
-               names_to = "month", 
-               values_to = "glob_anom")%>%
-  mutate(month = as.numeric(month))
+  select(c("year", "JJA"))%>%
+  rename(glob_anom = JJA)
 
 obs_data = obs_data %>% 
-  mutate(year = year(date), month = month(date)) %>%
+  mutate(year = year(date)) %>%
   left_join(lambda_df, by=c("stn", "year")) %>%
-  left_join(glob_anomaly_reshaped, by = c("year", "month")) %>%
+  left_join(glob_anomaly_reshaped, by = "year") %>%
   left_join(threshold_9_df, by="id")
 
 
@@ -50,7 +46,7 @@ my_pal = c(
   '#ffa600')
 
 # --- get data for prediction
-dat_for_pred = readRDS("output/quant_models_clim_num_quantiles_30.csv") %>% #we're working with model 0 so far
+dat_for_pred = readRDS("output/glob_anomaly_quant_models_clim_num_quantiles_30.csv") %>% #we're working with model 0 so far
   dplyr::select(-c(loess_glob_temp_anom, quantile, value)) %>%
   left_join(read_csv("data/processed/sites_clim_sea_dist.csv"))%>%
   left_join(read_csv("data/processed/clim_scale_grid.csv"))

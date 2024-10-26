@@ -38,7 +38,6 @@ for (i in seq_along(files)){
   clim_data$maxtp = as.integer(clim_data$maxtp)
 
   sing_clim_thresh_values = clim_data %>%
-    filter(id %in% obs_data$id) %>%
     group_by(id) %>%
     summarise(clim_thresh_value_9 = quantile(maxtp, 0.9, na.rm = TRUE)) #ensures missing values are ignored
   
@@ -59,7 +58,7 @@ quantile_model <-  maxtp ~ clim_thresh_value_9
 quantile_model_fit <- evgam(quantile_model, obs_data, family = "ald", ald.args = list(tau = 0.9))
 obs_data$threshold_9 = quantile_model_fit$location$fitted
 
-#saves the estimates 0.9 quantile of obs data, estimates unsing regression based on 0.9 climate quantile
+#saves the estimates 0.9 quantile of obs data, estimates using regression based on 0.9 climate quantile
 quantile_model_fit %>% saveRDS("output/threshold_model_9") #keeping the folder name output for now
 
 write.csv(obs_data, "Data/processed/1971_2022_JJA_obs_data_bulk_model.csv", row.names = FALSE)

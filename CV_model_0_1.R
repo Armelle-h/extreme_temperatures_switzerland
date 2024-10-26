@@ -2,9 +2,10 @@
 # models using bootstrapped AIC,BIC and log likelihood. Bootstraps are 
 # constructed to preserve spatial and temporal dependence.
 
-#takes 9 minutes to run
+#takes 3 minutes to run
 
 #used to be done for 90 folds, now done for 15 folds 
+
 
 gc()
 rm(list = ls())
@@ -43,23 +44,26 @@ switzerland <- ne_countries(country = "Switzerland", scale = "medium", returncla
 #new code
 obs_data = vroom::vroom("Data/Observed_data/obs_data_gpd_model.csv")
 
+legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
+
+#joining obs data with the altitude 
+obs_data = obs_data %>%
+  left_join(legend_data %>% select(stn, Altitude.m.), by="stn")%>%
+  rename(altitude = Altitude.m.)
+
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
 
 glob_anomaly_reshaped = glob_anomaly %>%
-  select(-JJA)%>%
-  rename("06" = Jun, "07" = Jul, "08" = Aug)%>%
-  pivot_longer(cols = c("06", "07", "08"), 
-               names_to = "month", 
-               values_to = "glob_anom")%>%
-  mutate(month = as.numeric(month))
+  select(c("year", "JJA"))%>%
+  rename(glob_anom = JJA)
 
-threshold_9_df = vroom::vroom("Data/Observed_data/1971_2022_JJA_obs_data_bulk_model.csv")%>%
+threshold_9_df = vroom::vroom("Data/processed/1971_2022_JJA_obs_data_bulk_model.csv")%>%
   dplyr::select(threshold_9, id)%>%
   unique()
 
 obs_data = obs_data %>% 
-  mutate(year = year(date), month = month(date), week=week(date)) %>% #week is used for the temporal cross validation
-  left_join(glob_anomaly_reshaped, by = c("year", "month"))%>%
+  mutate(year = year(date), week=week(date)) %>% #week is used for the temporal cross validation
+  left_join(glob_anomaly_reshaped, by = "year")%>%
   left_join(threshold_9_df, by="id")
 
 # onlykeep full years for cv
@@ -132,7 +136,7 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
     extreme_data = obs_data %>%
       mutate(excess = maxtp - threshold_9) %>%
       filter(excess > 0) %>%
-      left_join(spatial_folds) %>%
+      left_join(spatial_folds, by="stn") %>%
       group_by(year, stn) %>%
       group_map(~{
         
@@ -156,10 +160,14 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
         
         this_fit_mod_0 = fit_mod_0(train$excess, train$scale_9)
         this_fit_mod_1 = fit_mod_1(train$excess, train$scale_9, train$glob_anom)
+        this_fit_mod_2 = fit_mod_2(train$excess, train$scale_9, train$glob_anom, train$altitude)
+        this_fit_mod_3 = fit_mod_3(train$excess, train$scale_9, train$altitude)
         
         # calculate scale parameter on climate grid
         pred_0 = my_predict_0(this_fit_mod_0, test$scale_9)
         pred_1 = my_predict_1(this_fit_mod_1, test$scale_9, test$glob_anom)
+        pred_2 = my_predict_2(this_fit_mod_2, test$scale_9, test$glob_anom, test$altitude)
+        pred_3 = my_predict_3(this_fit_mod_3, test$scale_9, test$altitude)
         
         write.table(paste0("model.0", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_0$scale, pred_0$shape[1]),",",mean(t)),
                     file = paste0('output/cv_res/spatio_temporal_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
@@ -167,6 +175,16 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
                     col.names = FALSE, row.names = FALSE)
         
         write.table(paste0("model.1", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_1$scale, pred_1$shape[1]),",",mean(t)),
+                    file = paste0('output/cv_res/spatio_temporal_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                    sep = ",", append = TRUE, quote = FALSE,
+                    col.names = FALSE, row.names = FALSE)
+        
+        write.table(paste0("model.2", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_2$scale, pred_2$shape[1]),",",mean(t)),
+                    file = paste0('output/cv_res/spatio_temporal_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                    sep = ",", append = TRUE, quote = FALSE,
+                    col.names = FALSE, row.names = FALSE)
+        
+        write.table(paste0("model.3", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_3$scale, pred_3$shape[1]),",",mean(t)),
                     file = paste0('output/cv_res/spatio_temporal_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                     sep = ",", append = TRUE, quote = FALSE,
                     col.names = FALSE, row.names = FALSE)
@@ -203,20 +221,35 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
       
       this_fit_mod_0 = fit_mod_0(train$excess, train$scale_9)
       this_fit_mod_1 = fit_mod_1(train$excess, train$scale_9, train$glob_anom)
+      this_fit_mod_2 = fit_mod_2(train$excess, train$scale_9, train$glob_anom, train$altitude)
+      this_fit_mod_3 = fit_mod_3(train$excess, train$scale_9, train$altitude)
       
       # calculate scale parameter on climate grid
       pred_0 = my_predict_0(this_fit_mod_0, test$scale_9)
       pred_1 = my_predict_1(this_fit_mod_1, test$scale_9, test$glob_anom)
+      pred_2 = my_predict_2(this_fit_mod_2, test$scale_9, test$glob_anom, test$altitude)
+      pred_3 = my_predict_3(this_fit_mod_3, test$scale_9, test$altitude)
       
       write.table(paste0("model.0", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_0$scale, pred_0$shape[1])),
                   file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                   sep = ",", append = TRUE, quote = FALSE,
                   col.names = FALSE, row.names = FALSE)
-      
+    
       write.table(paste0("model.1", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_1$scale, pred_1$shape[1])),
                   file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                   sep = ",", append = TRUE, quote = FALSE,
                   col.names = FALSE, row.names = FALSE)
+
+      write.table(paste0("model.2", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_2$scale, pred_2$shape[1])),
+                  file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                  sep = ",", append = TRUE, quote = FALSE,
+                  col.names = FALSE, row.names = FALSE)
+      
+      write.table(paste0("model.3", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_3$scale, pred_3$shape[1])),
+                  file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                  sep = ",", append = TRUE, quote = FALSE,
+                  col.names = FALSE, row.names = FALSE)
+      
     }
   }
 }
@@ -250,3 +283,4 @@ final_metrics_tenfold = tenfold_metrics %>%
     rmse_mean = mean(rmse, na.rm = TRUE),
     crps_mean = mean(crps, na.rm = TRUE)
   )
+

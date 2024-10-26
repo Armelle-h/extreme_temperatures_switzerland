@@ -14,19 +14,14 @@ obs_data = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
 
 glob_anomaly_reshaped = glob_anomaly %>%
-  select(-JJA)%>%
-  rename("06" = Jun, "07" = Jul, "08" = Aug)%>%
-  pivot_longer(cols = c("06", "07", "08"), 
-               names_to = "month", 
-               values_to = "glob_anom")%>%
-  mutate(month = as.numeric(month))
+  select(c("year", "JJA"))%>%
+  rename(glob_anom = JJA)
 
 obs_data = obs_data %>% 
-  mutate(month = month(date)) %>%
-  left_join(glob_anomaly_reshaped, by = c("year", "month"))
+  left_join(glob_anomaly_reshaped, by = "year")
 
 # ---- get covariates for prediction
-temporal_covariates = obs_data %>%
+temporal_covariates = obs_data %>%  #issue, be wary of, glob anom is defined for June July and August so each year is associated with 3 different values
   dplyr::select(year, glob_anom) %>% 
   unique() %>%
   arrange(year)
@@ -102,6 +97,8 @@ obs_smoothed_quantiles = obs_data %>%
     
     print(paste0("Interpolating quantile estimates for ", .x$stn[1]))
     
+    if (.x$stn[1]=="AAR"){View(res)}
+    
     # interpolate quantiles over tau for each year
     res %>%
       group_by(year) %>%
@@ -123,7 +120,10 @@ obs_smoothed_quantiles = obs_data %>%
 
 # save quantile models
 obs_smoothed_quantiles %>% saveRDS(paste0("output/glob_anomaly_quant_models_num_quantiles_",num_quantiles,".csv"))
-#obs_smoothed_quantiles = readRDS("output/quant_models")
+
+#------------------------------------------------------------------------------------------------------------------
+
+obs_smoothed_quantiles = readRDS(paste0("output/glob_anomaly_quant_models_num_quantiles_",num_quantiles,".csv"))
 
 #I CAN STOP HERE. FOR NOW, DON'T NEED EXCEEDANCE FUNCTION
 
@@ -133,9 +133,6 @@ lambda_thresh_ex = obs_data %>%
   group_map(~{
     
     print(.x$stn[1])
-    
-    print(obs_smoothed_quantiles%>%
-            filter(stn == .x$stn[1]))
     
     # Calculate exceedance probability for threshold_9 
     #(threshold_9 using a regression model is an estimate of the 0.9 obs quantile)

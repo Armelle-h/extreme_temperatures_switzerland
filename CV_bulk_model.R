@@ -36,16 +36,12 @@ obs_data = obs_data %>%
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
 
 glob_anomaly_reshaped = glob_anomaly %>%
-  select(-JJA)%>%
-  rename("06" = Jun, "07" = Jul, "08" = Aug)%>%
-  pivot_longer(cols = c("06", "07", "08"), 
-               names_to = "month", 
-               values_to = "glob_anom")%>%
-  mutate(month = as.numeric(month))
+  select(c("year", "JJA"))%>%
+  rename(glob_anom = JJA)
 
 obs_data = obs_data %>% 
-  mutate(year = year(date), month = month(date), week=week(date)) %>% #week is used for the temporal cross validation
-  left_join(glob_anomaly_reshaped, by = c("year", "month"))
+  mutate(year = year(date), week=week(date)) %>% #week is used for the temporal cross validation
+  left_join(glob_anomaly_reshaped, by = "year")
 
 # onlykeep full years for cv
 obs_data <- obs_data %>%
@@ -170,5 +166,14 @@ for(cv_method in c("10fold", "spatial-temporal")){ #not beautifully written but 
     job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude)), fitting_quantiles, "quant_glob_anom", quantiles_to_estimate, num_spatial_folds, week_chunks)})
     job::job({run_cv("spatial-temporal", obs_data%>% select(-c(glob_anom)), fitting_quantiles, "quant_log_alt", quantiles_to_estimate, num_spatial_folds, week_chunks)})
   }
-
 }
+
+
+#computing the mean 
+
+file_6fols = read.csv("output/cv_bulk_models/six_fold_cv.csv")
+
+mean_6fold = file_6fols %>%
+  group_by(model_name) %>%
+  summarise(mean_RMSE = mean(RMSE, na.rm = TRUE))
+

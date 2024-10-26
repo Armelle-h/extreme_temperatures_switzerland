@@ -22,16 +22,12 @@ obs_data = obs_data %>%
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
 
 glob_anomaly_reshaped = glob_anomaly %>%
-  select(-JJA)%>%
-  rename("06" = Jun, "07" = Jul, "08" = Aug)%>%
-  pivot_longer(cols = c("06", "07", "08"), 
-              names_to = "month", 
-              values_to = "glob_anom")%>%
-  mutate(month = as.numeric(month))
+  select(c("year", "JJA"))%>%
+  rename(glob_anom = JJA)
 
 obs_data = obs_data %>% 
-  mutate(month = month(date)) %>%
-  left_join(glob_anomaly_reshaped, by = c("year", "month"))
+  left_join(glob_anomaly_reshaped, by = "year")
+
 index = 0
 
 for(q in seq_along(quantiles_to_estimate_bulk)){

@@ -1,9 +1,9 @@
-#testing if works for year 2017
-#takes 11~15 minutes to run
-
-#for 1_13774-> 7 minutes to run :) 
+#In this file I'm computing the empirircal climate quantiles for quantile values 
+#in quantiles_to_estimate_bulk = seq(0.001,0.99,length.out = num_quantiles)
 
 #for everything, takes 25 minutes to run :)
+
+#All good, don't forget to readRDS the files
 
 gc()
 rm(list = ls())
@@ -42,7 +42,11 @@ files = list.files(path = "Data/Climate_data/By_id", full.names = TRUE)
 
 clim_quant_list = list()
 
+index = 1
+
 for (i in seq_along(files)){
+  
+  if (index>1){break}
 
   clim_data = fread(files[[i]])
 
