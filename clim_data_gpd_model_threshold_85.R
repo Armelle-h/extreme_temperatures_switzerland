@@ -45,6 +45,8 @@ for (i in seq_along(files)){
 
 clim_data_extreme_85 =  do.call(rbind, clim_data_extreme_85_list)
 
+rm(clim_data_extreme_85_list)
+
 # Negative log-likelihood function for GPD
 ngll = function(par){
   if(par <= 0) return(2^30) # Return large penalty if the scale parameter is non-positive
@@ -67,7 +69,7 @@ estimate_scale_fixed_shape = function(x,shape_c){
 num_sites = clim_data_extreme_85$id %>% unique()
 
 #don't forget to do some tests to change the interval
-potential_shape_values_climate = seq(-0.23, -0.18, length.out = 50) #used to be length.out = 50, -0.23, -0.18
+potential_shape_values_climate = seq(-0.23, -0.18, length.out = 50)[-(1:29)] #used to be length.out = 50, -0.23, -0.18
 
 sub_clim_data_extreme_85 = clim_data_extreme_85 %>%
   dplyr::select(id, excess)%>%
@@ -120,7 +122,7 @@ optimal_shape = potential_shape_values_climate[which.min(loglik_sum)]
 print(potential_shape_values_climate)
 saveRDS(potential_shape_values_climate, file = "shape_candiates_85.rds")
 print(loglik_sum)
-saveRDS(loglik_sum, file = "associated_loglikelihood_85_part_1.rds")
+saveRDS(loglik_sum, file = "associated_loglikelihood_85_part_2.rds")
 print(optimal_shape)
 saveRDS(optimal_shape, file = "optimal_shape_85.rds")
 min_loglik_sum = min(loglik_sum)

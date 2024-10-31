@@ -81,3 +81,36 @@ obs_file_with_id <- obs_file_with_id %>%
 
 #saving in a csv file
 write.csv(obs_file_with_id, "Data/Observed_data/1971_2023_JJA_obs_data_loc_id.csv", row.names=FALSE)
+
+
+#detecting outliers 
+
+obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv")
+
+obs_data = unique(obs_data)
+
+print(nrow(obs_data))
+
+#need to inspect by hand the below to investigate if the value is absurd or not 
+obs_data_absurd <- obs_data %>%
+  group_by(stn) %>%
+  filter(maxtp > quantile(maxtp, 0.75) + 3 * IQR(maxtp) |
+           maxtp < quantile(maxtp, 0.25) - 3 * IQR(maxtp))
+
+#remove absurd values 
+
+absurd_stations = c("ATT", "CMA", "DIA", "DUB", "TICOM", "TIT")
+
+obs_data_absurd = obs_data_absurd %>%
+  filter(stn %in% absurd_stations)
+
+print(nrow(obs_data_absurd))
+
+obs_data_filtered = anti_join(obs_data, obs_data_absurd)
+
+print(nrow(obs_data_filtered))
+
+write.csv(obs_data_filtered, "Data/Observed_data/filtered_1971_2023_JJA_obs_data_loc_id.csv", row.names=FALSE)
+  
+  
+

@@ -31,7 +31,7 @@ tic.clearlog()
 
 tic("Timing the group processing")
 
-num_quantiles = 50
+num_quantiles = 40
 quantiles_to_estimate_bulk = seq(0.001,0.99,length.out = num_quantiles)
 
 raw_obs_data<- read.csv("Data/processed/1971_2022_JJA_obs_data_bulk_model.csv", header=TRUE)
@@ -97,7 +97,7 @@ for (i in seq_along(files)){
 clim_quantiles_subset = do.call(rbind, clim_quant_list)
 
 clim_quantiles_subset %>%
-  saveRDS(paste0("Data/processed/debug_clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
+  saveRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
 #all good until here -----------------------------------------------
 
@@ -107,7 +107,7 @@ obs_data = obs_data %>%
   left_join(clim_quantiles_subset)
 
 obs_data %>%
-  saveRDS(paste0("Data/processed/debug_obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
+  saveRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
 toc(log = TRUE)
 

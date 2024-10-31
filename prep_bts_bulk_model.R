@@ -1,3 +1,5 @@
+#in the second part, 1 file takes 10 minutes
+
 gc() 
 rm(list = ls())
 library(tidyverse)
@@ -112,13 +114,15 @@ if(standardise_data){
       res_3 = rep(NA, length(data))
       
       for(i in seq(length(data))){
-        if(data[i] > threshold[i]){ # transform tail
+        if(data[i] > threshold[i]){ # transform tail      #if we're in the tail of the distribution
           #if my_lambda[i] is NA then the whole expression will be NA
           res_0[i] = 1 - (my_lambda[i]) *(1+shpe_0[i]* ((data[i] - threshold[i])/scle_0[i]))^(-1/(shpe_0[i]))
           res_1[i] = 1 - (my_lambda[i]) *(1+shpe_1[i]* ((data[i] - threshold[i])/scle_1[i]))^(-1/(shpe_1[i]))
           res_2[i] = 1 - (my_lambda[i]) *(1+shpe_2[i]* ((data[i] - threshold[i])/scle_2[i]))^(-1/(shpe_2[i]))
           res_3[i] = 1 - (my_lambda[i]) *(1+shpe_3[i]* ((data[i] - threshold[i])/scle_3[i]))^(-1/(shpe_3[i]))
         }else{ 
+          #if we're in the main body of the distribution, can use temp_to_tau functions and we don't have different candidate models 
+          #for the body
           candidate_value = .x$temp_to_tau[i][[1]](data[i])
           
           if (candidate_value<0 | candidate_value>1) {
@@ -154,6 +158,14 @@ if(standardise_data){
   obs_data %>%
     saveRDS(paste0("Data/processed/standardised_data_for_bootstrapping_num_quantiles_", num_quantiles))
 }
+
+#Sanity check if unif_0,..., unif_3 does have values in (0,1) 
+
+invalid_values <- obs_data %>%
+  filter(if_any(c(unif_0, unif_1, unif_2, unif_3), ~ . < 0 | . > 1))
+
+print(nrow(invalid_values))
+
 
 #END OF FIXED PART
 
@@ -208,7 +220,7 @@ bts_rng = seq(i,(i+batch_size-1))
 
 for(b in bts_rng){
   
-  if (b == 1 | b == 2 | b == 3 ){next}
+  if (b == 1 | b == 2 | b == 3 | b == 4 | b == 5 | b == 6){next}
   
   print(b)
   bts_data <- rlang::duplicate(obs_data, shallow = FALSE) # make a deep copy
@@ -302,9 +314,18 @@ for(b in bts_rng){
             
           # --- model 0
           if(!is.na(my_lambda[i]) && !is.na(.x$unif_0[i]) && .x$unif_0[i] > (1-my_lambda[i])){
-            print((1 + (.x$unif_0[i]-1)/(my_lambda[i])))
-            .x$maxtp_0[i] =  evd::qgpd(p =(1 + (.x$unif_0[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_0[i],shape=shpe_0[i])
-          }else{
+            
+            proba = (1 + (.x$unif_0[i]-1)/(my_lambda[i]))
+            
+            if (proba>=1 | proba <=0) {
+              .x$maxtp_0[i] = NA
+            }
+            else{
+              .x$maxtp_0[i] =  evd::qgpd(p =(1 + (.x$unif_0[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_0[i],shape=shpe_0[i])
+            }
+            
+          }
+          else{
               
             if (!is.na(.x$unif_0[i])) {
               .x$maxtp_0[i] = apply_tau_to_temp(quantile_models, .x$year[i], .x$stn[i], .x$unif_0[i])
@@ -317,8 +338,18 @@ for(b in bts_rng){
             
           # --- model 1
           if(!is.na(my_lambda[i]) && !is.na(.x$unif_1[i]) && .x$unif_1[i] > (1-my_lambda[i])){
-            .x$maxtp_1[i] =  evd::qgpd( p =(1 + (.x$unif_1[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_1[i],shape=shpe_1[i])
-          }else{
+            
+            proba = (1 + (.x$unif_1[i]-1)/(my_lambda[i]))
+            
+            if (proba>=1 | proba <=0) {
+              .x$maxtp_1[i] = NA
+            }
+            else{
+              .x$maxtp_1[i] =  evd::qgpd( p =(1 + (.x$unif_1[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_1[i],shape=shpe_1[i])
+            }
+
+           }
+           else{
             if (!is.na(.x$unif_1[i])) {
               .x$maxtp_1[i] = apply_tau_to_temp(quantile_models, .x$year[i], .x$stn[i], .x$unif_1[i])
             }
@@ -329,7 +360,17 @@ for(b in bts_rng){
             
           # --- model 2
           if(!is.na(my_lambda[i]) && !is.na(.x$unif_2[i]) && .x$unif_2[i] > (1-my_lambda[i])){
-            .x$maxtp_2[i] =  evd::qgpd( p =(1 + (.x$unif_2[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_2[i],shape=shpe_2[i])
+            
+            proba = (1 + (.x$unif_2[i]-1)/(my_lambda[i]))
+            
+            if (proba>=1 | proba <=0) {
+              .x$maxtp_2[i] = NA
+            }
+            else{
+              .x$maxtp_2[i] =  evd::qgpd( p =(1 + (.x$unif_2[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_2[i],shape=shpe_2[i])
+              
+            }
+            
           }else{
               
             if (!is.na(.x$unif_2[i])) {
@@ -343,7 +384,19 @@ for(b in bts_rng){
             
           # --- model 3
           if(!is.na(my_lambda[i]) && !is.na(.x$unif_3[i]) && .x$unif_3[i] > (1-my_lambda[i])){
-            .x$maxtp_3[i] =  evd::qgpd( p =(1 + (.x$unif_3[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_3[i],shape=shpe_3[i])
+          
+            proba = (1 + (.x$unif_3[i]-1)/(my_lambda[i]))
+            
+            if (proba>=1 | proba <=0) {
+              .x$maxtp_3[i] = NA #temp solution after fixing stuff shouldn't be used anymore 
+            }
+            else{
+              
+              .x$maxtp_3[i] =  evd::qgpd( p =(1 + (.x$unif_3[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_3[i],shape=shpe_3[i])
+              
+            }
+            
+            
           }else{
               
             if (!is.na(.x$unif_3[i])) {
