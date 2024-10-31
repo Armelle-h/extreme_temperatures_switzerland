@@ -148,22 +148,22 @@ if(fit_true_models){
   #reminder: scale_8 is the scaling parameter of the climate model (computed in clim_data_gpd_model)
   fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_8)  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/change_init_param_model_0_true.csv")
+    write_csv("output/gpd_model_fits/change_init_param_model_0_true_8.csv")
   
   fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_8,
             extreme_dat_true$glob_anom)  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/model_1_true.csv")
+    write_csv("output/gpd_model_fits/model_1_true_8.csv")
   
   fit_mod_2(extreme_dat_true$excess, extreme_dat_true$scale_8,
             extreme_dat_true$glob_anom, extreme_dat_true$altitude)  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/model_2_true.csv")
+    write_csv("output/gpd_model_fits/model_2_true_8.csv")
   
   fit_mod_3(extreme_dat_true$excess, extreme_dat_true$scale_8,
             extreme_dat_true$altitude)  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/change_init_param_model_3_true.csv")
+    write_csv("output/gpd_model_fits/model_3_true_8.csv")
   
 }
 

@@ -33,7 +33,7 @@ switzerland <- ne_countries(country = "Switzerland", scale = "medium", returncla
 # Observational data with covariates
 
 #new code
-obs_data = vroom::vroom("Data/Observed_data/obs_data_gpd_model.csv")
+obs_data = vroom::vroom("Data/Observed_data/obs_data_8_gpd_model.csv")
 
 legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
 

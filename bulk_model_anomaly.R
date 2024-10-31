@@ -8,8 +8,8 @@ library(tidyverse)
 library(evgam)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
-num_quantiles = 30
-obs_data = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
+num_quantiles = 40
+obs_data = readRDS(paste0("Data/processed/debug_obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
 
@@ -55,7 +55,7 @@ if(fit_clim_quants){
            beta_0 = quantile_model_fit$location$coefficients[1],
            beta_1 = quantile_model_fit$location$coefficients[2],
            beta_2 = quantile_model_fit$location$coefficients[3]) %>%
-      write_csv(paste0("Data/processed/glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
+      write_csv(paste0("Data/processed/debug_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
   }
 }
 
@@ -63,7 +63,7 @@ if(fit_clim_quants){
 #regression coeff were not already computed
 
 # --- read in fitted quantile regression coefficients
-quant_reg_model_pars = read_csv(paste0("Data/processed/glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
+quant_reg_model_pars = read_csv(paste0("Data/processed/debug_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
                                 col_names = c('tau', 'beta_0', 'beta_1', 'beta_2'))
 
 # # --- creates a tibble with each station and its quantile model
@@ -96,8 +96,6 @@ obs_smoothed_quantiles = obs_data %>%
     }
     
     print(paste0("Interpolating quantile estimates for ", .x$stn[1]))
-    
-    if (.x$stn[1]=="AAR"){View(res)}
     
     # interpolate quantiles over tau for each year
     res %>%
@@ -150,6 +148,11 @@ lambda_thresh_ex = obs_data %>%
   }, .keep = T) %>%
   plyr::rbind.fill() %>%
   as_tibble()
+
+#replacing unvalid probas by NA
+
+lambda_thresh_ex <- lambda_thresh_ex %>%
+  mutate(thresh_exceedance_9 = if_else(thresh_exceedance_9 < 0 | thresh_exceedance_9 > 1, NA, thresh_exceedance_9)) 
 
 
 lambda_thresh_ex %>%

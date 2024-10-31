@@ -334,4 +334,4 @@ obs_sites = obs_sites %>%
 
 obs_data %>%
   left_join(obs_sites) %>% 
-  write_csv("Data/Observed_data/obs_data_gpd_model.csv")
+  write_csv("Data/Observed_data/obs_data_8_gpd_model.csv")
