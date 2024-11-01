@@ -4,4 +4,4 @@
 *.RData
 *.Rhistory
 
-output\threshold_model_9
+output/
