@@ -67,11 +67,11 @@ estimate_scale_fixed_shape = function(x,shape_c){
 num_sites = clim_data_extreme_95$id %>% unique()
 
 #don't forget to do some tests to change the interval
-potential_shape_values_climate = seq(-0.26, -0.22, length.out = 50) #used to be length.out = 50, -0.23, -0.18
+potential_shape_values_climate = seq(-0.23, -0.18, length.out = 50) #used to be length.out = 50, -0.23, -0.18
 
 sub_clim_data_extreme_95 = clim_data_extreme_95 %>%
   dplyr::select(id, excess)%>%
-  filter(id %% 5 == 0) 
+  filter(id %% 5 == 0) #to change
 
 #Computes log-likelihood value for potential shape parameter values in parallel (the cluster takes 4 hours to run)
 num_cores <- detectCores() - 1

@@ -9,7 +9,7 @@ library(evgam)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
 num_quantiles = 40
-obs_data = readRDS(paste0("Data/processed/debug_obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
+obs_data = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
 
@@ -162,7 +162,7 @@ lambda_thresh_ex %>%
 # ------------ get splines on clim scale
 
 #need to create
-clim_grid = read_csv("Data/id_lon_lat_correspondance.csv")
+clim_grid = read_csv("Data/Climate_data/clim_scale_grid_gpd_model.csv")
 
 #depending on what is needed, might need to do a for loop
 clim_dat_full = read_csv("Data/Climate_data/to_complete.csv")
@@ -181,7 +181,7 @@ for(i in seq(nrow(clim_grid))){
   print(clim_grid[i,]) #for debugging
   
   # Create data for prediction by merging with temporal covariates
-  this_data_for_pred = tibble(year = c(1960, 1971, 2023, 2024)) %>%
+  this_data_for_pred = tibble(year = c(1960, 1971, 2022, 2024)) %>%
     #one is before observed range, we have the extremes and one is after the observed range
     left_join(temporal_covariates) %>%
     mutate(longitude = clim_grid[i,]$longitude,

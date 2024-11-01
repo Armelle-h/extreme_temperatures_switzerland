@@ -165,8 +165,9 @@ calc_lambda_bts = function(bts_range, marg_mod, num_quantiles, obs_data, zeta_li
     unique() %>%
     arrange(year)
   
-  bootstrapped_models = read_csv(paste0("output/bts_quant_reg_", marg_mod, "_num_quantiles_", num_quantiles, ".csv"),
-                                 col_names = c("bts", "tau", "beta_0", "beta_0", "beta_1"))
+  #already has colnames
+  bootstrapped_models = read_csv(paste0("output/bts_quant_reg_", marg_mod, "_num_quantiles_", num_quantiles, ".csv"))
+  bootstrapped_models = unique(bootstrapped_models) #removing dupplicates
   
   for(bts_num in bts_range){
     print(paste0("Calculating lambda for bts num ", bts_num))
@@ -181,7 +182,7 @@ calc_lambda_bts = function(bts_range, marg_mod, num_quantiles, obs_data, zeta_li
         # --- get the climate quantile estimates closest to current station
         clim_vals = obs_data %>%
           filter(stn == .x$stn[1]) %>%
-          dplyr::select(quantile, value) %>%
+          dplyr::select(value) %>%
           unique() %>%
           pull(value) %>%
           unlist()
@@ -197,8 +198,8 @@ calc_lambda_bts = function(bts_range, marg_mod, num_quantiles, obs_data, zeta_li
           res = rbind(res,
                       tibble(quantile =  quantiles_to_estimate_bulk[q],
                              year = temporal_covariates$year,
-                             glob_anom = temporal_covariates$glob_anom
-                             quant_value = qpars$beta_0 + qpars$beta_0*clim_vals[q] + qpars$beta_1*temporal_covariates$glob_anom))
+                             glob_anom = temporal_covariates$glob_anom,
+                             quant_value = qpars$beta_0 + qpars$beta_1*clim_vals[q] + qpars$beta_2*temporal_covariates$glob_anom))
         }
         
         # interpolate quantiles over tau for each year
@@ -206,7 +207,7 @@ calc_lambda_bts = function(bts_range, marg_mod, num_quantiles, obs_data, zeta_li
           group_by(year) %>%
           group_map(~{
             tibble(year = .x$year[1],
-                   quant_spline = list(splinefun(.x$quant_value, zeta_list,  method = 'monoH.FC')))
+                   quant_spline = list(splinefun(.x$quant_value, .x$quantile,  method = 'monoH.FC')))
             # tau_to_temp = list(splinefun(.x$quantile,.x$quant_value,  method = 'monoH.FC')),
             # temp_to_tau = list(splinefun(.x$quant_value,.x$quantile,  method = 'monoH.FC')))
           }, .keep = T) %>%
@@ -227,7 +228,7 @@ calc_lambda_bts = function(bts_range, marg_mod, num_quantiles, obs_data, zeta_li
       group_by(stn) %>%
       group_map(~{
         
-        thresh_exceedance = obs_smoothed_quantiles%>%
+        thresh_exceedance = obs_smoothed_quantiles %>%
           filter(stn == .x$stn[1]) %>%
           pull(quant_spline) %>%
           sapply(function(x) sapply(.x$threshold_9[1], x))
@@ -257,14 +258,19 @@ glob_anomaly_reshaped = glob_anomaly %>%
 obs_data = obs_data %>% 
   mutate(year = year(date)) %>%
   left_join(glob_anomaly_reshaped, by = "year") %>%
-  select(-c("id", "clim_thresh_value_9", "threshold_9", "quantile"))
+  select(-c("id", "clim_thresh_value_9", "quantile")) #keeping threshold_9
 
 rm('glob_anomaly', 'glob_anomaly_reshaped')
 
 
-#test how long one iteration takes 
-
-job::job({calc_lambda_bts(seq(1,1),  'mod_0', 40, obs_data, zeta_list)} , import = c("calc_lambda_bts", "obs_data", "zeta_list", "seq_"))
+#Takes <20 minutes
+for (i in seq(1,20, 5)){ #20 dividable by 5 so no need for extra precautions
+  
+  seq_ = seq(i,i+4)
+  
+  job::job({calc_lambda_bts(seq_,  'mod_0', 40, obs_data, zeta_list)} , import = c("calc_lambda_bts", "obs_data", "zeta_list", "seq_"))
+  
+}
 
 
 job::job({calc_lambda_bts(seq(1,20),  'mod_0', 40)})
@@ -323,59 +329,24 @@ job::job({calc_lambda_bts(seq(1,20),  'mod_3', 40)})
 
 
 # --- on clim grid
-get_bulk_bts_on_clim_grid = function(bts_range, marg_mod, num_quantiles){
+get_bulk_bts_on_clim_grid = function(bts_range, marg_mod, num_quantiles, temporal_covariates){
+  
+  clim_grid = read_csv("Data/Climate_data/clim_scale_grid_gpd_model.csv")%>%
+    filter(id %% 10 == 0)
+    
+  # estimate empiricle quantiles for climate data, was already done and saved in a previous file
+  clim_quantiles_subset = readRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))  %>%
+    filter(id %% 10 == 0)
+    
+  #done on one index out of 10 because otherwise too memory expensive (!) and too slow(?)
+    
   for(this_bts in bts_range){
     
-    obs_data = readRDS(paste0("data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
     quantiles_to_estimate_bulk = seq(0.001,0.99,length.out = num_quantiles)
     
-    temporal_covariates = obs_data %>%
-      dplyr::select(year, glob_anom) %>%
-      unique() %>%
-      arrange(year)
-    
-    
-    
-    quant_reg_model_pars =  read_csv(paste0("output/bts_quant_reg_", marg_mod, "_num_quantiles_", num_quantiles, ".csv"),
-                                     col_names = c("bts", "tau", "beta_0", "beta_0", "beta_1")) %>%
+    #columns are already named
+    quant_reg_model_pars =  read_csv(paste0("output/bts_quant_reg_", marg_mod, "_num_quantiles_", num_quantiles, ".csv")) %>%
       filter(bts == this_bts)
-    
-    
-    
-    clim_grid = read_csv("Data/processed/clim_scale_grid.csv")
-    
-    #will need to change below with a for loop over the climate files
-    clim_dat_full = read_csv("Data/processed_data/full_clim_data.csv")
-    
-    
-    
-    # estimate empiricle quantiles for climate data
-    clim_quantiles = clim_dat_full %>%
-      group_by(id) %>%
-      group_map(~{
-        res = c()
-        for(q in quantiles_to_estimate_bulk){
-          res = rbind(res, tibble(id = .x$id[1],
-                                  longitude = .x$longitude[1],
-                                  latitude = .x$latitude[1],
-                                  quantile = q,
-                                  value = as.numeric(quantile(.x$maxtp, q))))
-        }
-        res
-      }, .keep = T)%>%
-      plyr::rbind.fill() %>%
-      as.tibble()
-    
-    clim_quantiles_subset = clim_quantiles %>%
-      # filter(id %in% obs_data$id) %>%
-      group_by(id) %>%
-      group_map(~{
-        
-        tibble(id = .x$id[1], quantile = list(.x$quantile), value = list(.x$value))
-      }, .keep = T) %>%
-      plyr::rbind.fill() %>%
-      as_tibble()
-    
     
     clim_grid = clim_grid %>%
       left_join(clim_quantiles_subset)
@@ -385,13 +356,11 @@ get_bulk_bts_on_clim_grid = function(bts_range, marg_mod, num_quantiles){
     
     # here
     for(i in seq(nrow(clim_grid))){
-      print(clim_grid[i,])
+      cat(i, "over", nrow(clim_grid))
       
-      this_data_for_pred = tibble(year = c(1931, 1942, 2020, 2022)) %>%
+      this_data_for_pred = tibble(year = c(1971, 2022)) %>% #was (1960, 1971, 2022, 2024) but was unsured how to handle 1960 and 2024 so changed to data for which I do have results
         left_join(temporal_covariates) %>%
-        mutate(longitude = clim_grid[i,]$longitude,
-               latitude = clim_grid[i,]$latitude,
-               id = clim_grid[i,]$id,
+        mutate(id = clim_grid[i,]$id,
                # threshold = clim_grid[i,]$threshold,
                # clim_scale = clim_grid[i,]$clim_scale,
                quantile = clim_grid[i,]$quantile,
@@ -408,7 +377,7 @@ get_bulk_bts_on_clim_grid = function(bts_range, marg_mod, num_quantiles){
         res = rbind(res,
                     tibble(quantile =  qpars$tau,
                            year = this_data_for_pred$year,
-                           quant_value = qpars$beta_0 + qpars$beta_0*clim_vals[q] + (qpars$beta_1)*(this_data_for_pred$glob_anom)))
+                           quant_value = qpars$beta_0 + qpars$beta_1*clim_vals[q] + (qpars$beta_2)*(this_data_for_pred$glob_anom)))
       }
       
       res = res %>%
@@ -455,10 +424,8 @@ get_bulk_bts_on_clim_grid = function(bts_range, marg_mod, num_quantiles){
         
         
         tibble(id = .x$id[1],
-               year = c(1931, 1942, 2020, 2022),
+               year = c(1971, 2022), #in the paper they never talk about the results from the untrained years so not doing it for untrained years 
                thresh_exceedance_9 = 1-thresh_exceedance_9)  
-        
-        
         
       }, .keep = T) %>%
       plyr::rbind.fill() %>%
@@ -476,12 +443,25 @@ get_bulk_bts_on_clim_grid = function(bts_range, marg_mod, num_quantiles){
 
 
 
+glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
+
+glob_anomaly_reshaped = glob_anomaly %>%
+  select(c("year", "JJA"))%>%
+  rename(glob_anom = JJA)
+
+temporal_covariates = glob_anomaly_reshaped %>%
+  dplyr::select(year, glob_anom) %>%
+  unique() %>%
+  arrange(year)
+
+rm('glob_anomaly', 'glob_anomaly_reshaped')
+
+#one iteration takes >20 minutes, maybe 30 minutes. Check if doing paralleization would be possible.
+
+job::job({get_bulk_bts_on_clim_grid(seq(1,1),  'mod_0', 40, temporal_covariates)}, import=c("get_bulk_bts_on_clim_grid", "temporal_covariates"))
 
 
-
-
-
- job::job({get_bulk_bts_on_clim_grid(seq(1,20),  'mod_2', 40)}) #doing it on 40 quantiles
+# job::job({get_bulk_bts_on_clim_grid(seq(1,20),  'mod_2', 40)}) #doing it on 40 quantiles
 # job::job({get_bulk_bts_on_clim_grid(seq(21,40), 'mod_2', 30)})
 # job::job({get_bulk_bts_on_clim_grid(seq(41,60), 'mod_2', 30)})
 # job::job({get_bulk_bts_on_clim_grid(seq(61,80), 'mod_2', 30)})
@@ -534,11 +514,10 @@ get_bulk_bts_on_clim_grid = function(bts_range, marg_mod, num_quantiles){
 
 
 # ------------------- PLOTS 
-marg_mod = 'mod_2'
-num_quantiles = 30
+marg_mod = 'mod_0'
+num_quantiles = 40
 
-true = read_csv(paste0("Data/processed/quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
-                col_names = c("tau", "beta_0", "beta_0", "beta_1"))
+true = read_csv(paste0("Data/processed/quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
 
 files = list.files("output/bts_thresh_ex_lambda/")
 files = files[grepl(marg_mod, files) & grepl(paste0("num_quantiles_",num_quantiles), files)]
@@ -554,16 +533,16 @@ for(f in files){
 all_bts_dat = rbind(all_bts_dat,read_csv(paste0("output/bts_thresh_ex_lambda/", f),
                                          col_names = c("bts", "stn", "year", "thresh_exceedance")))
 
-true_res = read_csv("data/processed/thresh_exceedance_lambda_num_quantiles_05.csv") %>%
+true_res = read_csv("Data/processed/thresh_exceedance_lambda_num_quantiles_05.csv") %>%
   group_by(year) %>%
   summarise(thresh_exceedance = mean(thresh_exceedance_9))
 
-res = read_csv("output/bts_quant_reg_mod_2_num_quantiles_30.csv",
-               col_names = c('bts', 'tau', 'b0', 'b1', 'b2'))
+res = read_csv(paste0("output/bts_quant_reg_", marg_mod, "_num_quantiles_", num_quantiles,".csv"),
+               col_names = c('bts', 'tau', 'b0', 'b1', 'b2')) #need to check if need to name the columns
 
 # --- read in fitted quantile regression coefficients
-true_pars = read_csv(paste0("data/processed/quantile_model_fit_pars_num_quantiles_",30,".csv"),
-                     col_names = c('tau', 'beta_0', 'beta_0', 'beta_1'))
+true_pars = read_csv(paste0("data/processed/quantile_model_fit_pars_num_quantiles_", num_quantiles,".csv"),
+                     col_names = c('tau', 'beta_0', 'beta_1', 'beta_2')) #need to check if need to rename columns 
 
 
 plts=gridExtra::grid.arrange(res %>%

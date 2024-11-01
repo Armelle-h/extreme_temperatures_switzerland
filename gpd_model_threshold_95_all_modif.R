@@ -49,7 +49,7 @@ obs_data %>%
   saveRDS(paste0("Data/processed/obs_data_95_for_bulk_model_num_quantiles_",num_quantiles,".csv")) #adding the 95 to avoid mistakes
 #messing everything up
 
-obs_data = readRDS(paste0("Data/processed/obs_data_95_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
+#obs_data = readRDS(paste0("Data/processed/obs_data_95_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
 # ---- get covariates for prediction
 temporal_covariates = obs_data %>%  #issue, be wary of, glob anom is defined for June July and August so each year is associated with 3 different values

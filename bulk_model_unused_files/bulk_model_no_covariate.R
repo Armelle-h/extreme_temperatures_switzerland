@@ -166,7 +166,7 @@ process_chunk <- function(indices, clim_grid, quant_reg_model_pars, quantiles_to
   for(i in indices) {
     #print(clim_grid[i,])
     
-    this_data_for_pred = tibble(year = c(1960, 1971, 2023, 2024)) %>%
+    this_data_for_pred = tibble(year = c(1960, 1971, 2022, 2024)) %>%
       #left_join(temporal_covariates) %>%  #no need, there's only year in temporal covariates
       mutate(id = clim_grid[i,]$id,
              quantile = clim_grid[i,]$quantile,
