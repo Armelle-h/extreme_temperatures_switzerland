@@ -1,4 +1,5 @@
-setwd("C:/Users/HOURS/Desktop/PDM/Code_R")
+setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
+library(tidyverse)
 
 data <- read_csv("Data/Observed_data/1940_2023_data.csv")
 data$tp <- as.integer(data$tp)
@@ -32,7 +33,7 @@ write.csv(legend, "1971_2023_JJA_legend.csv", row.names = FALSE)
 
 #from here ------------------------------------------------------------------
 
-setwd("C:/Users/HOURS/Desktop/PDM/Code_R")
+setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)
 
 #joining the location id as defined in climate data
@@ -82,6 +83,7 @@ obs_file_with_id <- obs_file_with_id %>%
 #saving in a csv file
 write.csv(obs_file_with_id, "Data/Observed_data/1971_2023_JJA_obs_data_loc_id.csv", row.names=FALSE)
 
+#year 2023 is removed in the file "pre_processing/removing_2023.R"
 
 #detecting outliers 
 
@@ -89,7 +91,7 @@ obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv")
 
 obs_data = unique(obs_data)
 
-print(nrow(obs_data))
+#print(nrow(obs_data))
 
 #need to inspect by hand the below to investigate if the value is absurd or not 
 obs_data_absurd <- obs_data %>%
@@ -99,18 +101,31 @@ obs_data_absurd <- obs_data %>%
 
 #remove absurd values 
 
-absurd_stations = c("ATT", "CMA", "DIA", "DUB", "TICOM", "TIT")
+absurd_stations = c("ATT", "CMA", "DIA", "DUB", "TICOM")
 
 obs_data_absurd = obs_data_absurd %>%
   filter(stn %in% absurd_stations)
 
-print(nrow(obs_data_absurd))
-
 obs_data_filtered = anti_join(obs_data, obs_data_absurd)
 
-print(nrow(obs_data_filtered))
+#removing year 2016 of TICAM 
 
-write.csv(obs_data_filtered, "Data/Observed_data/filtered_1971_2023_JJA_obs_data_loc_id.csv", row.names=FALSE)
-  
-  
+obs_data_filtered = obs_data_filtered %>%
+  filter(!(stn == "TICAM" & str_detect(date, "^2016")))
+
+#removing the station TIT 
+
+obs_data_filtered = obs_data_filtered %>%
+  filter(stn != "TIT")
+
+write.csv(obs_data_filtered, "Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv", row.names=FALSE)
+
+#updating the legend file 
+
+legend = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
+
+legend_filtered <- legend %>%
+  filter(stn %in% obs_data_filtered$stn)
+
+write.csv(legend_filtered, "1971_2022_JJA_legend.csv", row.names = FALSE)
 

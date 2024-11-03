@@ -147,6 +147,7 @@ cat("The optimal shape is:", optimal_shape, "\n")  #with this technique the opti
 
 #computing the associated loglikelihood ----------------------------------------
 
+#takes 3 minutes
 
 id_clim_data_extreme_95 = clim_data_extreme_95 %>%
   dplyr::select(id, excess)%>%
@@ -227,9 +228,7 @@ saveRDS(loglik_optimal_shape, "optimal_loglikelihood_5_index_95.rds") #loglikeli
 
 #end of computing the associated loglikelihood ----------------------------------
 
-#new version , the cluster takes two hours to run --> no use computing the associated loglikelihood to compare it to the others 
-#since the other was computed on one id out of 5 and here we consider all ids. It would be useful to have a result it and of 
-#itself 
+#it takes 45 minutes to run
 
 id_clim_data_extreme_95 = clim_data_extreme_95 %>%
   dplyr::select(id, excess)

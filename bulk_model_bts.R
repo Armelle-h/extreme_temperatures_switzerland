@@ -404,9 +404,27 @@ get_bulk_bts_on_clim_grid = function(bts_range, marg_mod, num_quantiles, tempora
     clim_date_w_quantile_mod = readRDS(paste0("output/quant_models_clim_", marg_mod, "_num_quantiles_",num_quantiles,"_bts_",this_bts,".csv"))
     
     # get clim threshold values
-    clim_thresh = clim_dat_full %>%
-      group_by(id) %>%
-      summarise(clim_thresh_value_9 = quantile(maxtp, 0.9))
+    files = list.files(path = "Data/Climate_data/By_id", full.names = TRUE)
+    clim_thresh_values_list = list()
+    
+    for (i in seq_along(files)){
+      
+      clim_data = fread(files[[i]])
+      
+      # Calculate the climate threshold values (0.9 quantile of 'maxtp')
+      sing_clim_thresh = clim_dat_full %>%
+        group_by(id) %>%
+        summarise(clim_thresh_value_9 = quantile(maxtp, 0.9, na.rm = TRUE))
+      
+      clim_thresh_values_list[[i]] = sing_clim_thresh_values
+      
+      #to free memory
+      rm(clim_data)
+      gc()
+      
+    }
+    
+    clim_thresh = do.call(rbind, clim_thresh_values_list)
     
     clim_date_w_quantile_mod = clim_date_w_quantile_mod %>% left_join(clim_thresh)
     clim_date_w_quantile_mod$threshold_9= predict(quantile_model_fit_9, clim_date_w_quantile_mod)$location
@@ -514,10 +532,14 @@ job::job({get_bulk_bts_on_clim_grid(seq(1,1),  'mod_0', 40, temporal_covariates)
 
 
 # ------------------- PLOTS 
+ 
+#for the plot below, don't need bts_on_clim_grid :)  
+ 
 marg_mod = 'mod_0'
 num_quantiles = 40
 
-true = read_csv(paste0("Data/processed/quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
+true = read_csv(paste0("Data/processed/glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
+                col_names = c('tau', 'beta_0', 'beta_1', 'beta_2'))
 
 files = list.files("output/bts_thresh_ex_lambda/")
 files = files[grepl(marg_mod, files) & grepl(paste0("num_quantiles_",num_quantiles), files)]
@@ -533,37 +555,38 @@ for(f in files){
 all_bts_dat = rbind(all_bts_dat,read_csv(paste0("output/bts_thresh_ex_lambda/", f),
                                          col_names = c("bts", "stn", "year", "thresh_exceedance")))
 
-true_res = read_csv("Data/processed/thresh_exceedance_lambda_num_quantiles_05.csv") %>%
+true_res = read_csv(paste0("Data/processed/glob_anomaly_thresh_exceedance_lambda_num_quantiles_", num_quantiles, ".csv")) %>%
   group_by(year) %>%
   summarise(thresh_exceedance = mean(thresh_exceedance_9))
 
-res = read_csv(paste0("output/bts_quant_reg_", marg_mod, "_num_quantiles_", num_quantiles,".csv"),
-               col_names = c('bts', 'tau', 'b0', 'b1', 'b2')) #need to check if need to name the columns
+res = read_csv(paste0("output/bts_quant_reg_", marg_mod, "_num_quantiles_", num_quantiles,".csv"), skip = 1,
+               col_names = c('bts', 'tau', 'b0', 'b1', 'b2')) 
 
 # --- read in fitted quantile regression coefficients
-true_pars = read_csv(paste0("data/processed/quantile_model_fit_pars_num_quantiles_", num_quantiles,".csv"),
+true_pars = read_csv(paste0("Data/processed/glob_anomaly_quantile_model_fit_pars_num_quantiles_", num_quantiles,".csv"),
                      col_names = c('tau', 'beta_0', 'beta_1', 'beta_2')) #need to check if need to rename columns 
 
 
 plts=gridExtra::grid.arrange(res %>%
                                group_by(tau) %>%
                                summarise(upper = quantile(b2, 0.975),
-                                         lower = quantile(b2, 0.030)) %>%
+                                         lower = quantile(b2, 0.025)) %>% #used to be 0.030
                                ggplot()+
                                geom_ribbon(aes(tau, ymin = lower, ymax = upper), alpha = 0.3)+
-                               geom_line(data = true_pars, aes(tau, beta_1))+
+                               geom_line(data = true_pars, aes(tau, beta_2))+
                                xlim(c(0.08, 0.9))+
                                ylim(c(-1.5, 3))+
                                theme_minimal(12)+
-                               labs(y = expression(beta[2]),
+                               labs(y = expression(beta[3]),
                                     x = expression(tau))+
                                theme(axis.title.y = element_text(angle = 0, vjust = 0.5)),
+                             #second plot
                              all_bts_dat %>% 
                                group_by(bts, year) %>%
                                summarise(thresh_exceedance = mean(thresh_exceedance))  %>%
                                group_by(year) %>%
                                summarise(upper = quantile(thresh_exceedance, 0.975),
-                                         lower = quantile(thresh_exceedance, 0.030)) %>%
+                                         lower = quantile(thresh_exceedance, 0.025)) %>%
                                ungroup() %>%
                                ggplot()+
                                geom_ribbon(aes(year, ymin = lower, ymax = upper), alpha = 0.3) +
@@ -572,7 +595,7 @@ plts=gridExtra::grid.arrange(res %>%
                                labs(y = expression(lambda[t]),
                                     x = "Year")+
                                theme(axis.title.y = element_text(angle = 0, vjust = 0.5))+
-                               xlim(c(1931, 2020))+
+                               xlim(c(1971, 2022))+
                                ylim(c(0.05, 0.19)), nrow = 1)
 
 ggsave(plts,filename = "output/figs/bulk_quantile_regression.pdf", height = 3, width = 7.5)

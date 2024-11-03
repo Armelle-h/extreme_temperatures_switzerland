@@ -27,8 +27,9 @@ temporal_covariates = obs_data %>%  #issue, be wary of, glob anom is defined for
   arrange(year)
 
 quantiles_to_estimate_bulk = seq(0.001,0.99,length.out = num_quantiles)
-fit_clim_quants = T # bool, re-estimate clim quantiles?
+fit_clim_quants = F # by default, they should've already been computed
 
+#inside the if loop depends only on climate data, not the observed data
 if(fit_clim_quants){
   
   file.remove(paste0("Data/processed/glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
@@ -55,7 +56,7 @@ if(fit_clim_quants){
            beta_0 = quantile_model_fit$location$coefficients[1],
            beta_1 = quantile_model_fit$location$coefficients[2],
            beta_2 = quantile_model_fit$location$coefficients[3]) %>%
-      write_csv(paste0("Data/processed/debug_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
+      write_csv(paste0("Data/processed/glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
   }
 }
 
@@ -63,7 +64,7 @@ if(fit_clim_quants){
 #regression coeff were not already computed
 
 # --- read in fitted quantile regression coefficients
-quant_reg_model_pars = read_csv(paste0("Data/processed/debug_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
+quant_reg_model_pars = read_csv(paste0("Data/processed/glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
                                 col_names = c('tau', 'beta_0', 'beta_1', 'beta_2'))
 
 # # --- creates a tibble with each station and its quantile model
@@ -121,7 +122,7 @@ obs_smoothed_quantiles %>% saveRDS(paste0("output/glob_anomaly_quant_models_num_
 
 #------------------------------------------------------------------------------------------------------------------
 
-obs_smoothed_quantiles = readRDS(paste0("output/glob_anomaly_quant_models_num_quantiles_",num_quantiles,".csv"))
+#obs_smoothed_quantiles = readRDS(paste0("output/glob_anomaly_quant_models_num_quantiles_",num_quantiles,".csv"))
 
 #I CAN STOP HERE. FOR NOW, DON'T NEED EXCEEDANCE FUNCTION
 
@@ -151,8 +152,8 @@ lambda_thresh_ex = obs_data %>%
 
 #replacing unvalid probas by NA
 
-lambda_thresh_ex <- lambda_thresh_ex %>%
-  mutate(thresh_exceedance_9 = if_else(thresh_exceedance_9 < 0 | thresh_exceedance_9 > 1, NA, thresh_exceedance_9)) 
+#lambda_thresh_ex <- lambda_thresh_ex %>%
+#  mutate(thresh_exceedance_9 = if_else(thresh_exceedance_9 < 0 | thresh_exceedance_9 > 1, NA, thresh_exceedance_9)) 
 
 
 lambda_thresh_ex %>%
@@ -162,12 +163,12 @@ lambda_thresh_ex %>%
 # ------------ get splines on clim scale
 
 #need to create
-clim_grid = read_csv("Data/Climate_data/clim_scale_grid_gpd_model.csv")
+clim_grid = read_csv("Data/Climate_data/clim_scale_grid_gpd_model.csv")%>%
+  filter(id %% 10 == 0)
 
-#depending on what is needed, might need to do a for loop
-clim_dat_full = read_csv("Data/Climate_data/to_complete.csv")
 
-clim_quantiles_subset = readRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
+clim_quantiles_subset = readRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))%>%
+  filter(id %% 10 == 0)
 
 #don't see the point, unless it is to have more flexibility about which localisation data we're considering
 clim_grid = clim_grid %>%
@@ -181,12 +182,10 @@ for(i in seq(nrow(clim_grid))){
   print(clim_grid[i,]) #for debugging
   
   # Create data for prediction by merging with temporal covariates
-  this_data_for_pred = tibble(year = c(1960, 1971, 2022, 2024)) %>%
+  this_data_for_pred = tibble(year = c(1971, 2022)) %>%
     #one is before observed range, we have the extremes and one is after the observed range
     left_join(temporal_covariates) %>%
-    mutate(longitude = clim_grid[i,]$longitude,
-           latitude = clim_grid[i,]$latitude,
-           id = clim_grid[i,]$id,
+    mutate(id = clim_grid[i,]$id,
            quantile = clim_grid[i,]$quantile,
            value = clim_grid[i,]$value) 
   
