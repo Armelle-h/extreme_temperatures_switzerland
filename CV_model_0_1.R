@@ -86,7 +86,7 @@ obs_sites_sf = st_as_sf(obs_sites, coords = c("longitude", "latitude"), crs = 43
 #obs_sites_sf <- st_set_geometry(obs_sites_sf, "coord_pts")
 
 #splits data based on coordinates
-num_spatial_folds  = 5
+num_spatial_folds  = 4
 clustered = spatial_clustering_cv(obs_sites_sf, v = num_spatial_folds)
 
 spatial_folds = c()
@@ -192,7 +192,7 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
     }
   }
   
-  if(cv_method == "10fold"){
+  if(cv_method == "12fold"){
     
     extreme_data = obs_data %>%
       mutate(excess = maxtp - threshold_9) %>%
@@ -208,9 +208,9 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
       as_tibble()
     
     
-    #cv_method = '10fold'
+    #cv_method = '12fold'
     # ---------- define random folds
-    num_random_folds = 15
+    num_random_folds = 12
     set.seed(1234567)
     extreme_data$random_fold = sample(seq(num_random_folds), size = nrow(extreme_data), replace = T)
     
@@ -231,22 +231,22 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
       pred_3 = my_predict_3(this_fit_mod_3, test$scale_9, test$altitude)
       
       write.table(paste0("model.0", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_0$scale, pred_0$shape[1])),
-                  file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                  file = paste0('output/cv_res/twelve_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                   sep = ",", append = TRUE, quote = FALSE,
                   col.names = FALSE, row.names = FALSE)
     
       write.table(paste0("model.1", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_1$scale, pred_1$shape[1])),
-                  file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                  file = paste0('output/cv_res/twelve_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                   sep = ",", append = TRUE, quote = FALSE,
                   col.names = FALSE, row.names = FALSE)
 
       write.table(paste0("model.2", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_2$scale, pred_2$shape[1])),
-                  file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                  file = paste0('output/cv_res/twelve_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                   sep = ",", append = TRUE, quote = FALSE,
                   col.names = FALSE, row.names = FALSE)
       
       write.table(paste0("model.3", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold_9,  pred_3$scale, pred_3$shape[1])),
-                  file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                  file = paste0('output/cv_res/twelve_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                   sep = ",", append = TRUE, quote = FALSE,
                   col.names = FALSE, row.names = FALSE)
       
@@ -255,7 +255,7 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
 }
 
 
-job::job({run_cv('10fold', 0.9, obs_data, spatial_folds, get_metrics)}, import = c("obs_data", 'run_cv', "spatial_folds", "get_metrics"))
+job::job({run_cv('12fold', 0.9, obs_data, spatial_folds, get_metrics)}, import = c("obs_data", 'run_cv', "spatial_folds", "get_metrics"))
 job::job({run_cv('spatial-temporal', 0.9, obs_data, spatial_folds, get_metrics, num_spatial_folds, week_chunks)}, import = c("obs_data", 'run_cv', "spatial_folds",  "get_metrics", "num_spatial_folds", "week_chunks"))
 
 
@@ -272,10 +272,10 @@ final_metrics = spatio_temporal_metrics %>%
     crps_mean = mean(crps, na.rm = TRUE)
   )
 
-tenfold_metrics = read.csv("output/cv_res/ten_fold_cv_test_mod_n9.csv", header=FALSE)
-colnames(tenfold_metrics) = c("model", "sum_ll", "stand_sum_ll", "rmse", "crps")
+twelvefold_metrics = read.csv("output/cv_res/twelve_fold_cv_test_mod_n9.csv", header=FALSE)
+colnames(twelvefold_metrics) = c("model", "sum_ll", "stand_sum_ll", "rmse", "crps")
 
-final_metrics_tenfold = tenfold_metrics %>%
+final_metrics_twelvefold = twelvefold_metrics %>%
   group_by(model) %>%
   summarise(
     sum_ll_mean = mean(sum_ll, na.rm = TRUE),

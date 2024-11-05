@@ -8,7 +8,7 @@ library(tidyverse)
 library(evgam)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
-num_quantiles = 40
+num_quantiles = 30
 obs_data = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
@@ -27,7 +27,7 @@ temporal_covariates = obs_data %>%  #issue, be wary of, glob anom is defined for
   arrange(year)
 
 quantiles_to_estimate_bulk = seq(0.001,0.99,length.out = num_quantiles)
-fit_clim_quants = F # by default, they should've already been computed
+fit_clim_quants = T # by default, they should've already been computed
 
 #inside the if loop depends only on climate data, not the observed data
 if(fit_clim_quants){
@@ -47,9 +47,15 @@ if(fit_clim_quants){
     # Set the 'value' column for current quantile
     obs_data_for_quant_reg$value = obs_data_for_quant_reg$value %>% lapply(`[[`, q) %>% unlist
     
+    if(q==1 | q==19){ #not amazing, trick was that if I hadn't the condition for q==19 then the hessian when doing evgam wouldn't have been positive definite
+      inits_coeff = c(-2, 1, 3)
+    } else{
+        inits_coeff = c(quantile_model_fit$location$coefficients[1],quantile_model_fit$location$coefficients[2],quantile_model_fit$location$coefficients[3])
+      }
+    
     # Fit the quantile regression model using EVGAM package with asymmetric Laplace distribution
     quantile_model_fit <- evgam(maxtp ~ value + glob_anom, obs_data_for_quant_reg,
-                                family = "ald", ald.args = list(tau = zeta))
+                                family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
     
     # Save the fitted parameter estimates for each quantile
     tibble(tau = zeta,
@@ -111,7 +117,6 @@ obs_smoothed_quantiles = obs_data %>%
       plyr::rbind.fill() %>%
       as_tibble() %>%
       mutate(stn = .x$stn[1])
-    
   }, .keep = T) %>%
   plyr::rbind.fill() %>%
   as_tibble()
@@ -131,8 +136,6 @@ lambda_thresh_ex = obs_data %>%
   group_by(stn) %>%
   group_map(~{
     
-    print(.x$stn[1])
-    
     # Calculate exceedance probability for threshold_9 
     #(threshold_9 using a regression model is an estimate of the 0.9 obs quantile)
     
@@ -149,11 +152,6 @@ lambda_thresh_ex = obs_data %>%
   }, .keep = T) %>%
   plyr::rbind.fill() %>%
   as_tibble()
-
-#replacing unvalid probas by NA
-
-#lambda_thresh_ex <- lambda_thresh_ex %>%
-#  mutate(thresh_exceedance_9 = if_else(thresh_exceedance_9 < 0 | thresh_exceedance_9 > 1, NA, thresh_exceedance_9)) 
 
 
 lambda_thresh_ex %>%

@@ -148,7 +148,7 @@ if(fit_true_models){
   #reminder: scale_85 is the scaling parameter of the climate model (computed in clim_data_gpd_model)
   fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_85)  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/change_init_param_model_0_true_85.csv")
+    write_csv("output/gpd_model_fits/model_0_true_85.csv")
   
   fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_85,
             extreme_dat_true$glob_anom)  %>%

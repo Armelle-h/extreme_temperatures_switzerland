@@ -32,11 +32,13 @@ switzerland <- ne_countries(country = "Switzerland", scale = "medium", returncla
 # ========  ========  Read in data  ========  ========
 # Observational data with covariates
 
+num_quantiles = 30
+
 #to change depending on the obs_data of interest
-obs_data = vroom::vroom("Data/Observed_data/obs_data_85_gpd_model.csv")
+obs_data = vroom::vroom("Data/Observed_data/obs_data_95_gpd_model.csv")
 
 obs_data = obs_data %>%
-  rename(scale = scale_85)
+  rename(scale = scale_95)
 
 legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
 
@@ -52,15 +54,15 @@ glob_anomaly_reshaped = glob_anomaly %>%
   rename(glob_anom = JJA)
 
 #to change depending on the threshold you're studying
-threshold_85_df = vroom::vroom("Data/processed/1971_2022_JJA_obs_data_bulk_model.csv")%>%
-  dplyr::select(threshold_85, id)%>%
-  rename(threshold = threshold_85)
+threshold_95_df = readRDS(paste0("Data/processed/obs_data_95_for_bulk_model_num_quantiles_",num_quantiles,".csv"))%>%
+  dplyr::select(threshold_95, id)%>%
+  rename(threshold = threshold_95)%>%
   unique()
 
 obs_data = obs_data %>% 
   mutate(year = year(date), week=week(date)) %>% #week is used for the temporal cross validation
   left_join(glob_anomaly_reshaped, by = "year")%>%
-  left_join(threshold_85_df, by="id")
+  left_join(threshold_95_df, by="id")
 
 # onlykeep full years for cv
 obs_data <- obs_data %>%
@@ -82,7 +84,7 @@ obs_sites_sf = st_as_sf(obs_sites, coords = c("longitude", "latitude"), crs = 43
 #obs_sites_sf <- st_set_geometry(obs_sites_sf, "coord_pts")
 
 #splits data based on coordinates
-num_spatial_folds  = 5
+num_spatial_folds  = 4
 clustered = spatial_clustering_cv(obs_sites_sf, v = num_spatial_folds)
 
 spatial_folds = c()
@@ -188,7 +190,7 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
     }
   }
   
-  if(cv_method == "10fold"){
+  if(cv_method == "12fold"){
     
     extreme_data = obs_data %>%
       mutate(excess = maxtp - threshold) %>%
@@ -204,9 +206,9 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
       as_tibble()
     
     
-    #cv_method = '10fold'
+    #cv_method = '12fold'
     # ---------- define random folds
-    num_random_folds = 15
+    num_random_folds = 12
     set.seed(1234567)
     extreme_data$random_fold = sample(seq(num_random_folds), size = nrow(extreme_data), replace = T)
     
@@ -227,22 +229,22 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
       pred_3 = my_predict_3(this_fit_mod_3, test$scale, test$altitude)
       
       write.table(paste0("model.0", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold,  pred_0$scale, pred_0$shape[1])),
-                  file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                  file = paste0('output/cv_res/twelve_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                   sep = ",", append = TRUE, quote = FALSE,
                   col.names = FALSE, row.names = FALSE)
       
       write.table(paste0("model.1", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold,  pred_1$scale, pred_1$shape[1])),
-                  file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                  file = paste0('output/cv_res/twelve_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                   sep = ",", append = TRUE, quote = FALSE,
                   col.names = FALSE, row.names = FALSE)
       
       write.table(paste0("model.2", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold,  pred_2$scale, pred_2$shape[1])),
-                  file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                  file = paste0('output/cv_res/twelve_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                   sep = ",", append = TRUE, quote = FALSE,
                   col.names = FALSE, row.names = FALSE)
       
       write.table(paste0("model.3", ",", get_metrics(test$maxtp, test$excess, test$quant, test$threshold,  pred_3$scale, pred_3$shape[1])),
-                  file = paste0('output/cv_res/ten_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
+                  file = paste0('output/cv_res/twelve_fold_cv_test_mod_n', str_remove(thresh_qnt, "0."), '.csv'),
                   sep = ",", append = TRUE, quote = FALSE,
                   col.names = FALSE, row.names = FALSE)
       
@@ -251,11 +253,11 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
 }
 
 
-job::job({run_cv('10fold', 0.85, obs_data, spatial_folds, get_metrics)}, import = c("obs_data", 'run_cv', "spatial_folds", "get_metrics"))
-job::job({run_cv('spatial-temporal', 0.85, obs_data, spatial_folds, get_metrics, num_spatial_folds, week_chunks)}, import = c("obs_data", 'run_cv', "spatial_folds",  "get_metrics", "num_spatial_folds", "week_chunks"))
+job::job({run_cv('12fold', 0.95, obs_data, spatial_folds, get_metrics)}, import = c("obs_data", 'run_cv', "spatial_folds", "get_metrics"))
+job::job({run_cv('spatial-temporal', 0.95, obs_data, spatial_folds, get_metrics, num_spatial_folds, week_chunks)}, import = c("obs_data", 'run_cv', "spatial_folds",  "get_metrics", "num_spatial_folds", "week_chunks"))
 
 
-spatio_temporal_metrics = read.csv("output/cv_res/spatio_temporal_cv_test_mod_n85.csv", header=FALSE)
+spatio_temporal_metrics = read.csv("output/cv_res/spatio_temporal_cv_test_mod_n95.csv", header=FALSE)
 colnames(spatio_temporal_metrics) = c("model", "sum_ll", "stand_sum_ll", "rmse", "crps", "avg_week")
 
 final_metrics = spatio_temporal_metrics %>%
@@ -268,10 +270,10 @@ final_metrics = spatio_temporal_metrics %>%
     crps_mean = mean(crps, na.rm = TRUE)
   )
 
-tenfold_metrics = read.csv("output/cv_res/ten_fold_cv_test_mod_n85.csv", header=FALSE)
-colnames(tenfold_metrics) = c("model", "sum_ll", "stand_sum_ll", "rmse", "crps")
+twelvefold_metrics = read.csv("output/cv_res/twelve_fold_cv_test_mod_n95.csv", header=FALSE)
+colnames(twelvefold_metrics) = c("model", "sum_ll", "stand_sum_ll", "rmse", "crps")
 
-final_metrics_tenfold = tenfold_metrics %>%
+final_metrics_twelvefold = twelvefold_metrics %>%
   group_by(model) %>%
   summarise(
     sum_ll_mean = mean(sum_ll, na.rm = TRUE),

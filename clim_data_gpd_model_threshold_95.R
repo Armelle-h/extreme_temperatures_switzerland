@@ -309,6 +309,8 @@ saveRDS(loglik_optimal_shape, "loglik_optimal_shape_95.rds") #loglikelihood comp
 
 saveRDS(scales_95, "scales_95.rds")
 
+scales_95 = readRDS("scales_95.rds")
+
 # --- save estimates on climate grid
 
 #keeping only location where the temperature is above the associated threshold 0.95 quantile

@@ -9,6 +9,8 @@ source('gpd_models.R')
 
 
 standardise_data = T
+
+#independent of the bootstrap thing
 if(standardise_data){
   
   num_quantiles = 40

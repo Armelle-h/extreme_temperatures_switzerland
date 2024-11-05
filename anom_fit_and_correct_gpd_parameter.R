@@ -11,6 +11,7 @@ library(gridExtra)
 #loading the custom functions
 source('gpd_models.R') #for now, might need to do a bit of relocating
 
+num_quantiles = 30
 
 fit_uncorrected_models = T
 fit_true_models = T
@@ -32,7 +33,7 @@ threshold_9_df = vroom::vroom("Data/processed/1971_2022_JJA_obs_data_bulk_model.
   unique()
 
 #lambda associated with observed data, vary the quantile model
-lambda_df = vroom::vroom("Data/processed/glob_anomaly_thresh_exceedance_lambda_num_quantiles_30.csv") 
+lambda_df = vroom::vroom(paste0("Data/processed/glob_anomaly_thresh_exceedance_lambda_num_quantiles_", num_quantiles, ".csv") )
 
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
 
@@ -62,9 +63,11 @@ if(fit_true_models){
   #fit and save model 0, 1, 2  #you fit on the OBSERVED data. So enough to have altitude info only on the observed points :)
   
   #reminder: scale_9 is the scaling parameter of the climate model (computed in clim_data_gpd_model)
-  fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_9)  %>%
-    matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/change_init_param_model_0_true.csv")
+
+    
+    fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_9)  %>%
+      matrix() %>% t() %>% as.data.frame() %>%
+      write_csv("output/gpd_model_fits/model_0_true.csv")
   
   fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_9,
             extreme_dat_true$glob_anom)  %>%
@@ -79,7 +82,7 @@ if(fit_true_models){
   fit_mod_3(extreme_dat_true$excess, extreme_dat_true$scale_9,
             extreme_dat_true$altitude)  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/change_init_param_model_3_true.csv")
+    write_csv("output/gpd_model_fits/model_3_true.csv")
   
 }
 
