@@ -87,7 +87,7 @@ write.csv(obs_file_with_id, "Data/Observed_data/1971_2023_JJA_obs_data_loc_id.cs
 
 #detecting outliers 
 
-obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv")
+obs_data = read.csv("Data/Observed_data/Unfiltered/1971_2022_JJA_obs_data_loc_id.csv")
 
 obs_data = unique(obs_data)
 
@@ -108,10 +108,10 @@ obs_data_absurd = obs_data_absurd %>%
 
 obs_data_filtered = anti_join(obs_data, obs_data_absurd)
 
-#removing year 2016 of TICAM 
+#removing year 2016 of TICAB 
 
 obs_data_filtered = obs_data_filtered %>%
-  filter(!(stn == "TICAM" & str_detect(date, "^2016")))
+  filter(!(stn == "TICAB" & str_detect(date, "^2016")))
 
 #removing the station TIT 
 
@@ -122,7 +122,7 @@ write.csv(obs_data_filtered, "Data/Observed_data/1971_2022_JJA_obs_data_loc_id.c
 
 #updating the legend file 
 
-legend = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
+legend = read.csv("Data/Observed_data/Unfiltered/1971_2022_JJA_obs_legend.csv")
 
 legend_filtered <- legend %>%
   filter(stn %in% obs_data_filtered$stn)
