@@ -146,22 +146,22 @@ if(fit_true_models){
   #fit and save model 0, 1, 2  #you fit on the OBSERVED data. So enough to have altitude info only on the observed points :)
   
   #reminder: scale_85 is the scaling parameter of the climate model (computed in clim_data_gpd_model)
-  fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_85)  %>%
+  fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_85, c(1.1, -0.5, -0.1))  %>%
     matrix() %>% t() %>% as.data.frame() %>%
     write_csv("output/gpd_model_fits/model_0_true_85.csv")
   
   fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_85,
-            extreme_dat_true$glob_anom)  %>%
+            extreme_dat_true$glob_anom, c(0.8, 0.01, 0.3, -0.15))  %>%
     matrix() %>% t() %>% as.data.frame() %>%
     write_csv("output/gpd_model_fits/model_1_true_85.csv")
   
   fit_mod_2(extreme_dat_true$excess, extreme_dat_true$scale_85,
-            extreme_dat_true$glob_anom, extreme_dat_true$altitude)  %>%
+            extreme_dat_true$glob_anom, extreme_dat_true$altitude, c(0.8, -0.05, -0.001, 0.1, 0.01, -0.15))  %>%
     matrix() %>% t() %>% as.data.frame() %>%
     write_csv("output/gpd_model_fits/model_2_true_85.csv")
   
   fit_mod_3(extreme_dat_true$excess, extreme_dat_true$scale_85,
-            extreme_dat_true$altitude)  %>%
+            extreme_dat_true$altitude, c(0.9, -0.2, 0.03, -0.18))  %>%
     matrix() %>% t() %>% as.data.frame() %>%
     write_csv("output/gpd_model_fits/model_3_true_85.csv")
   

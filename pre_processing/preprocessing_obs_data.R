@@ -111,12 +111,26 @@ obs_data_filtered = anti_join(obs_data, obs_data_absurd)
 #removing year 2016 of TICAB 
 
 obs_data_filtered = obs_data_filtered %>%
-  filter(!(stn == "TICAB" & str_detect(date, "^2016")))
+  mutate(year = lubridate::year(date))%>%
+  filter(!(stn == "TICAB" & year==2016))
 
 #removing the station TIT 
 
 obs_data_filtered = obs_data_filtered %>%
   filter(stn != "TIT")
+
+#removing June 2015 for TICOM, remove TICAB on the 2015-08-13, remove BEKAP in 2011-07-04, after observation from the qqplot seemed unrealistic
+
+obs_data_filtered = obs_data_filtered %>%
+  mutate(month = lubridate::month(date))%>%
+  filter(!(stn == "TICOM" & month == 06))%>%
+  filter(!(stn == "TICAB" & date == "2015-08-13"))%>%
+  filter(!(stn == "BEKAP" & date == "2011-07-04"))
+
+cat("Number of data removed:", nrow(obs_data_filtered), " over ", nrow(obs_data), "equivalently ", (1-nrow(obs_data_filtered)/nrow(obs_data))*100, "%")
+
+obs_data_filtered = obs_data_filtered %>%
+  select(-c(year, month))
 
 write.csv(obs_data_filtered, "Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv", row.names=FALSE)
 
@@ -127,5 +141,5 @@ legend = read.csv("Data/Observed_data/Unfiltered/1971_2022_JJA_obs_legend.csv")
 legend_filtered <- legend %>%
   filter(stn %in% obs_data_filtered$stn)
 
-write.csv(legend_filtered, "1971_2022_JJA_legend.csv", row.names = FALSE)
+write.csv(legend_filtered, "Data/Observed_data/1971_2022_JJA_obs_legend.csv", row.names = FALSE)
 

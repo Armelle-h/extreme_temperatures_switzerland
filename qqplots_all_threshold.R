@@ -1,4 +1,3 @@
-
 gc()
 rm(list = ls())
 
@@ -7,9 +6,9 @@ setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
 source('gpd_models.R')
 
-num_quantiles = 40
+num_quantiles = 30
 
-obs_data = vroom::vroom("Data/Observed_data/obs_data_gpd_model.csv")
+obs_data = vroom::vroom("Data/Observed_data/obs_data_95_gpd_model.csv")
 
 legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
 
@@ -24,29 +23,31 @@ glob_anomaly_reshaped = glob_anomaly %>%
   select(c("year", "JJA"))%>%
   rename(glob_anom = JJA)
 
-threshold_9_df = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv")) %>%
-  select(c(id, threshold_9))%>% #enough as threshold_9 varies only spatially 
+threshold_95_df = readRDS(paste0("Data/processed/obs_data_95_for_bulk_model_num_quantiles_",num_quantiles,".csv")) %>%
+  select(c(id, threshold_95))%>% #enough as threshold_95 varies only spatially 
   unique()
-  
-lambda_df = vroom::vroom(paste0("Data/processed/glob_anomaly_thresh_exceedance_lambda_num_quantiles_", num_quantiles, ".csv"))
 
-#"stn"   "date"    "maxtp"  "id"  "scale_9"   "year" "thresh_exceedance_9" "threshold_9" "glob_anom"
+lambda_df = vroom::vroom(paste0("Data/processed/glob_anomaly_95_thresh_exceedance_lambda_num_quantiles_", num_quantiles, ".csv"))
+
+#"stn"   "date"    "maxtp"  "id"  "scale_95"   "year" "thresh_exceedance_95" "threshold_95" "glob_anom"
 obs_data = obs_data %>% 
   mutate(year = year(date)) %>%
   left_join(lambda_df, by = c("stn", "year")) %>%
-  left_join(threshold_9_df, by = c("id"))%>%
+  left_join(threshold_95_df, by = c("id"))%>%
   left_join(glob_anomaly_reshaped, by = "year")
 
 # "year"        "tau_to_temp" "temp_to_tau" "stn"
 obs_smoothed_quantiles = readRDS(paste0("output/glob_anomaly_quant_models_num_quantiles_", num_quantiles, ".csv"))%>%
   select(- tau_to_temp)
 
-marg_mod = 'mod_1'
+#for threshold 95, model 1 is the best followed very closely by model 2
+#for threshold 95, model 1 is the best followed very very closely by model 2
+marg_mod = 'mod_1' 
 
-this_fit_mod = read_csv("output/gpd_model_fits/model_1_true.csv") %>%
+this_fit_mod = read_csv("output/gpd_model_fits/model_1_true_95.csv") %>%
   unlist() %>% as.numeric
 
-pred <- my_predict_1(this_fit_mod, obs_data$scale_9, obs_data$glob_anom) #change according to model !!!!!!!!!!
+pred <- my_predict_1(this_fit_mod, obs_data$scale_95, obs_data$glob_anom) #change according to model !!!!!!!!!!
 
 
 obs_data$scale = pred$scale
@@ -54,9 +55,9 @@ obs_data$shape = pred$shape
 
 obs_data %>% group_by(stn) %>% summarise(count = n()) %>% arrange(count)
 standardised_qq = obs_data %>% 
-  dplyr::select(stn, year, maxtp, scale, shape, threshold_9) %>%
-  filter(maxtp>=threshold_9) %>%
-  mutate(unif = evd::pgpd(q = (maxtp - threshold_9), loc = 0, scale = scale, shape = shape[1])) %>%
+  dplyr::select(stn, year, maxtp, scale, shape, threshold_95) %>%
+  filter(maxtp>=threshold_95) %>%
+  mutate(unif = evd::pgpd(q = (maxtp - threshold_95), loc = 0, scale = scale, shape = shape[1])) %>%
   group_by(stn) %>%
   group_map(~{
     
@@ -81,8 +82,8 @@ standardised_qq = obs_data %>%
 
 
 standardised_qq = obs_data %>%
-  filter(maxtp>=threshold_9) %>%
-  mutate(unif = evd::pgpd(q = (maxtp - threshold_9), loc = 0, scale = scale, shape = shape[1])) %>%
+  filter(maxtp>=threshold_95) %>%
+  mutate(unif = evd::pgpd(q = (maxtp - threshold_95), loc = 0, scale = scale, shape = shape[1])) %>%
   mutate(exp = -log(1 - unif)) %>%
   mutate(exp = -log(1 - unif)) %>%
   mutate(rank = seq(nrow(.))/(nrow(.)+1)) %>%
@@ -111,11 +112,11 @@ standardised_body = rbind(obs_data %>%
                           obs_data %>%
                             filter(exp_ideal<=4.5) %>%
                             sample_n(5000)) %>%
-  filter(maxtp<threshold_9) %>%
+  filter(maxtp<threshold_95) %>%
   group_by(stn, year) %>%
   group_map(~{
     data = .x$maxtp
-    threshold = .x$threshold_9
+    threshold = .x$threshold_95
     res = rep(NA, length(data))
     
     this_quant_mod = obs_smoothed_quantiles %>%
@@ -142,14 +143,14 @@ bulk_and_tail = rbind(obs_data %>%
   group_map(~{
     
     data = .x$maxtp
-    threshold = .x$threshold_9
+    threshold = .x$threshold_95
     res = rep(NA, length(data))
     num_extremes = sum(data>threshold)
     
     if(num_extremes >0){ # if extreme obs in this year at this site
       scle = .x$scale
       shpe = .x$shape
-      my_lambda = .x$thresh_exceedance_9
+      my_lambda = .x$thresh_exceedance_95
       
       res[data > threshold] = 1 - my_lambda[data > threshold]*(1-evd::pgpd((data[data > threshold] - threshold[data > threshold]), loc = 0,scale = scle[data > threshold], shape = shpe[1]))
     }
@@ -177,7 +178,7 @@ plt = gridExtra::grid.arrange(bulk_and_tail %>%
                                 ggplot()+
                                 geom_point(aes(sort(ideal), sort(unif)), size = 0.75)+
                                 geom_abline(col = 'red',linetype = 'longdash')+
-                                geom_vline(xintercept = 0.9)+
+                                geom_vline(xintercept = 0.95)+
                                 theme_minimal(12)+
                                 theme(panel.grid.minor = element_blank(),
                                       axis.title.y = element_blank(),

@@ -8,7 +8,7 @@ library(tidyverse)
 library(evgam)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
-num_quantiles = 30
+num_quantiles = 40
 obs_data = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
@@ -47,7 +47,7 @@ if(fit_clim_quants){
     # Set the 'value' column for current quantile
     obs_data_for_quant_reg$value = obs_data_for_quant_reg$value %>% lapply(`[[`, q) %>% unlist
     
-    if(q==1 | q==19){ #not amazing, trick was that if I hadn't the condition for q==19 then the hessian when doing evgam wouldn't have been positive definite
+    if(q==1){
       inits_coeff = c(-2, 1, 3)
     } else{
         inits_coeff = c(quantile_model_fit$location$coefficients[1],quantile_model_fit$location$coefficients[2],quantile_model_fit$location$coefficients[3])

@@ -121,10 +121,10 @@ saveRDS(potential_shape_values_climate, file = "shape_candiates.rds")
 print(loglik_sum)
 saveRDS(loglik_sum, file = "associated_loglikelihood.rds")
 print(optimal_shape)
-saveRDS(optimal_shape, file = "optimal_shape.rds")
+saveRDS(optimal_shape, file = "temp_optimal_shape.rds")
 min_loglik_sum = min(loglik_sum)
 print(min_loglik_sum)
-saveRDS(min_loglik_sum, file = "optimal_loglikelihood.rds")
+saveRDS(min_loglik_sum, file = "temp_optimal_loglikelihood.rds")
 
 #DO THE SPLINE THING TO GET THE MAX AND THEN RUN THE CODE BELOW
 
@@ -139,6 +139,9 @@ result <- optimize(spline_loglik, range(potential_shape_values_climate))
 # Extract the minimum value and the pre-image (argmin)
 estimated_optimal_loglik <- result$objective
 optimal_shape <- result$minimum
+
+saveRDS(optimal_shape, "optimal_shape.rds")
+saveRDS(estimated_optimal_loglik, "optimal_loglikelihood.rds")
 
 # Display the results
 cat("The minimum loglikelihood is:", estimated_optimal_loglik, "\n") #with this technique the optimal loglik go from 
@@ -308,6 +311,8 @@ scales_9 <- c(result_1$scales_, result_2$scales_, result_3$scales_, result_4$sca
 saveRDS(loglik_optimal_shape, "loglik_optimal_shape.rds") #loglikelihood computed for all indexes 
 
 saveRDS(scales_9, "scales_9.rds")
+
+scales_9 = readRDS("scales_9.rds")
 
 # --- save estimates on climate grid
 

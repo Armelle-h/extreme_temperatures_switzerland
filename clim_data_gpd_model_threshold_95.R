@@ -122,10 +122,10 @@ saveRDS(potential_shape_values_climate, file = "shape_candiates_95.rds")
 print(loglik_sum)
 saveRDS(loglik_sum, file = "associated_loglikelihood_95.rds")
 print(optimal_shape)
-saveRDS(optimal_shape, file = "optimal_shape_95.rds")
+saveRDS(optimal_shape, file = "temp_optimal_shape_95.rds")
 min_loglik_sum = min(loglik_sum)
 print(min_loglik_sum)
-saveRDS(min_loglik_sum, file = "optimal_loglikelihood_95.rds")
+saveRDS(min_loglik_sum, file = "temp_optimal_loglikelihood_95.rds")
 
 #DO THE SPLINE THING TO GET THE MAX AND THEN RUN THE CODE BELOW
 
@@ -141,10 +141,12 @@ result <- optimize(spline_loglik, range(potential_shape_values_climate))
 estimated_optimal_loglik <- result$objective
 optimal_shape <- result$minimum
 
-# Display the results
-cat("The minimum loglikelihood is:", estimated_optimal_loglik, "\n") #with this technique the optimal loglik go from 
-cat("The optimal shape is:", optimal_shape, "\n")  #with this technique the optimal shape go from -0.2014286 (before) to -0.2019049 (after). 
+saveRDS(optimal_shape, "optimal_shape_95.rds")
+saveRDS(estimated_optimal_loglik, "optimal_loglikelihood_95.rds")
 
+# Display the results
+cat("The minimum loglikelihood is:", estimated_optimal_loglik, "\n") 
+cat("The optimal shape is:", optimal_shape, "\n")  
 #computing the associated loglikelihood ----------------------------------------
 
 #takes 3 minutes

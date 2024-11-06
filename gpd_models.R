@@ -21,7 +21,7 @@ ngll_0 = function(par){
 }
 
 # Function to fit Model 0
-fit_mod_0 = function(this_dat, this_clim_scale, initial_pars = c(0.95, -0.3, -0.05)){
+fit_mod_0 = function(this_dat, this_clim_scale, initial_pars = c(0.8, -0.05, -0.1)){
   # Set the excess data globally
   excess_dat <<- this_dat
   # Log-transform the climatic scale
@@ -45,7 +45,7 @@ ngll_0_fix_shape = function(par){
 }
 
 # Function to fit Model 0 with fixed shape
-fit_mod_0_fix_shape  = function(this_dat, this_clim_scale, this_shape_est, initial_pars = c(0.95, -0.3)){ 
+fit_mod_0_fix_shape  = function(this_dat, this_clim_scale, this_shape_est, initial_pars = c(0.8, -0.05)){ 
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale) 
@@ -93,7 +93,7 @@ ngll_1 = function(par){
 }
 
 # Function to fit Model 1
-fit_mod_1 = function(this_dat, this_clim_scale, this_glob_anom, initial_pars = c(0.6, -0.2, 0.5, -0.1)){ #used to be c(0.3510713,  0.7598344, 0.3735851, -0.1429355)
+fit_mod_1 = function(this_dat, this_clim_scale, this_glob_anom, initial_pars = c(0.6, 0.1, 0.5, -0.1)){ #used to be c(0.3510713,  0.7598344, 0.3735851, -0.1429355)
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale)
@@ -121,7 +121,7 @@ ngll_1_fix_shape = function(par){
 }
 
 # Function to fit Model 1 with fixed shape
-fit_mod_1_fix_shape  = function(this_dat, this_clim_scale, this_glob_anom, this_shape_est, initial_pars = c(0.6, 0.2, 0.4)){ #used to be c(0.3510713,  0.7598344, 0.3735851)
+fit_mod_1_fix_shape  = function(this_dat, this_clim_scale, this_glob_anom, this_shape_est, initial_pars = c(0.6, 0.1, 0.5)){ #used to be c(0.3510713,  0.7598344, 0.3735851)
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale) 
@@ -164,7 +164,7 @@ ngll_2 = function(par){
 }
 
 # Function to fit Model 2
-fit_mod_2 = function(this_dat, this_clim_scale, this_glob_anom, this_altitude, initial_pars = c(0.4, -0.2, 0.03, 0.45, 0.004, -0.1 )){ #used to be c( 0.0713, 0.700, 0.0513, 0.123, 0.00117, -0.15)
+fit_mod_2 = function(this_dat, this_clim_scale, this_glob_anom, this_altitude, initial_pars = c(-0.1, 0.1, 0.03, 0.5, -0.04, -0.1 )){ #used to be c( 0.0713, 0.700, 0.0513, 0.123, 0.00117, -0.15)
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale)
@@ -194,7 +194,7 @@ ngll_2_fix_shape = function(par){ #altitude is set globally to log(this altitude
 }
 
 # Function to fit Model 2 with fixed shape
-fit_mod_2_fix_shape  = function(this_dat, this_clim_scale, this_glob_anom, this_altitude, this_shape_est, initial_pars = c( 0.4, -0.2, 0.03, 0.45, 0.004)){ #used to be c( 0.0713, 0.700, 0.0513, 0.123, 0.00117)
+fit_mod_2_fix_shape  = function(this_dat, this_clim_scale, this_glob_anom, this_altitude, this_shape_est, initial_pars = c( -0.1, 0.1, 0.03, 0.5, -0.04)){ #used to be c( 0.0713, 0.700, 0.0513, 0.123, 0.00117)
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale) 
@@ -237,8 +237,8 @@ ngll_3 = function(par){
   -sum(evd::dgpd(x = excess_dat, loc=0, scale = scale_est, shape=shape_est, log=T))
 }
 
-# Function to fit Model 1
-fit_mod_3 = function(this_dat, this_clim_scale, this_altitude, initial_pars = c(1.1, -0.4, -0.01, -0.1)){#used to be c(0.3510713,  0.7598344, 0.3735851, -0.1429355) and c(0.1,  0.5, 0.2, -0.037)
+# Function to fit Model 3
+fit_mod_3 = function(this_dat, this_clim_scale, this_altitude, initial_pars = c(0.5, -0.1, 0.01, -0.1)){#used to be c(0.3510713,  0.7598344, 0.3735851, -0.1429355) and c(0.1,  0.5, 0.2, -0.037)
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale)
@@ -266,7 +266,7 @@ ngll_3_fix_shape = function(par){
 }
 
 # Function to fit Model 1 with fixed shape
-fit_mod_3_fix_shape  = function(this_dat, this_clim_scale, this_altitude, this_shape_est, initial_pars = c(1.1, -0.4, -0.01)){ #used to be c(0.3510713,  0.7598344, 0.3735851) and c(0.1,  0.5, 0.2)
+fit_mod_3_fix_shape  = function(this_dat, this_clim_scale, this_altitude, this_shape_est, initial_pars = c(0.5, -0.1, 0.01)){ #used to be c(0.3510713,  0.7598344, 0.3735851) and c(0.1,  0.5, 0.2)
   # Set the excess data and other variables globally
   excess_dat <<- this_dat
   clim_scale <<- log(this_clim_scale) 

@@ -257,7 +257,7 @@ job::job({run_cv('12fold', 0.95, obs_data, spatial_folds, get_metrics)}, import 
 job::job({run_cv('spatial-temporal', 0.95, obs_data, spatial_folds, get_metrics, num_spatial_folds, week_chunks)}, import = c("obs_data", 'run_cv', "spatial_folds",  "get_metrics", "num_spatial_folds", "week_chunks"))
 
 
-spatio_temporal_metrics = read.csv("output/cv_res/spatio_temporal_cv_test_mod_n95.csv", header=FALSE)
+spatio_temporal_metrics = read.csv("output/cv_res/spatio_temporal_cv_test_mod_n9.csv", header=FALSE)
 colnames(spatio_temporal_metrics) = c("model", "sum_ll", "stand_sum_ll", "rmse", "crps", "avg_week")
 
 final_metrics = spatio_temporal_metrics %>%
@@ -270,7 +270,7 @@ final_metrics = spatio_temporal_metrics %>%
     crps_mean = mean(crps, na.rm = TRUE)
   )
 
-twelvefold_metrics = read.csv("output/cv_res/twelve_fold_cv_test_mod_n95.csv", header=FALSE)
+twelvefold_metrics = read.csv("output/cv_res/twelve_fold_cv_test_mod_n9.csv", header=FALSE)
 colnames(twelvefold_metrics) = c("model", "sum_ll", "stand_sum_ll", "rmse", "crps")
 
 final_metrics_twelvefold = twelvefold_metrics %>%
