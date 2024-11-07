@@ -34,13 +34,26 @@ total_rmse <- function(df, obs_data_quantile){
   results <- RMSE_df %>%
     mutate(rmse = map2_dbl(quantiles_pred, quantiles_empirical, calculate_rmse))
   
-  # Sum the RMSE over all years and stations
-  total_rmse_df <- results %>%
-    summarise(total_rmse = sqrt(sum(rmse^2, na.rm = TRUE) / sum(!is.na(rmse)))) 
+  return(mean(results$rmse, na.rm = TRUE))
+}
+
+calculate_mae <- function(list1, list2) {
+  if (length(list1) == length(list2)) {
+    return((mean(abs(list1 - list2), na.rm = TRUE)))  # Calculate RMSE
+  } else {
+    return(NA)  # Return NA if the lengths are different
+  }
+}
+
+total_mae <- function(df, obs_data_quantile){
+  MAE_df = df%>%
+    full_join(obs_data_quantile, by = c("stn", "year"), suffix = c("_pred", "_empirical"))
   
-  total_rmse_value <- total_rmse_df$total_rmse
+  # Calculate the RMSE for corresponding quantile lists
+  results <- MAE_df %>%
+    mutate(mae = map2_dbl(quantiles_pred, quantiles_empirical, calculate_mae))
   
-  return(total_rmse_value)
+  return(mean(results$mae, na.rm = TRUE)) #NOT OPTIONAL AS EMPIRICAL ARE NOT DEFINED FOR ALL STN YEAR PAIR
 }
 
 regression <- function(qpars, q, clim_vals, model_name, temporal_covariates){
@@ -89,6 +102,7 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
     obs_data_for_quant_reg$value = obs_data_for_quant_reg$value %>% lapply(`[[`, q) %>% unlist
     
     if (model_name == "no_covariate"){
+      
       # Fit the quantile regression model using EVGAM package with asymmetric Laplace distribution
       quantile_model_fit <- evgam(maxtp ~ 1, obs_data_for_quant_reg,
                                   family = "ald", ald.args = list(tau = zeta))
@@ -103,22 +117,47 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
       quantile_model_fit <- evgam(maxtp ~ value, obs_data_for_quant_reg,
                                   family = "ald", ald.args = list(tau = zeta))
       
+      new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2])
+      
+      if(q == 1){
+        prev_coeff = new_coeff
+      }
+      
+      if (q>1){
+        if (max(abs(prev_coeff-new_coeff))>1){
+          new_coeff = prev_coeff
+        }
+      }
+      
       # Save the fitted parameter estimates for each quantile
       result = tibble(tau = zeta,
-                      beta_0 = quantile_model_fit$location$coefficients[1],
-                      beta_1 = quantile_model_fit$location$coefficients[2])
+                      beta_0 = new_coeff[1],
+                      beta_1 = new_coeff[2])
     }
     
     if (model_name == "quant_glob_anom"){
+      
       # Fit the quantile regression model using EVGAM package with asymmetric Laplace distribution
       quantile_model_fit <- evgam(maxtp ~ value + glob_anom, obs_data_for_quant_reg,
                                   family = "ald", ald.args = list(tau = zeta))
       
+      new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3])
+      
+      if(q == 1){
+        prev_coeff = new_coeff
+      }
+      
+      if (q>1){
+        if (max(abs(prev_coeff-new_coeff))>1){
+          new_coeff = prev_coeff
+        }
+      }
+      
       # Save the fitted parameter estimates for each quantile
       result = tibble(tau = zeta,
-                      beta_0 = quantile_model_fit$location$coefficients[1],
-                      beta_1 = quantile_model_fit$location$coefficients[2],
-                      beta_2 = quantile_model_fit$location$coefficients[3])
+                      beta_0 = new_coeff[1],
+                      beta_1 = new_coeff[2],
+                      beta_2 = new_coeff[3])
     }
     
     if (model_name == "quant_log_alt"){
@@ -126,11 +165,24 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
       quantile_model_fit <- evgam(maxtp ~ value + log(altitude), obs_data_for_quant_reg,
                                   family = "ald", ald.args = list(tau = zeta))
       
+      
+      new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3])
+      
+      if(q == 1){
+        prev_coeff = new_coeff
+      }
+      
+      if (q>1){
+        if (max(abs(prev_coeff-new_coeff))>1){
+          new_coeff = prev_coeff
+        }
+      }
+      
       # Save the fitted parameter estimates for each quantile
       result = tibble(tau = zeta,
-                      beta_0 = quantile_model_fit$location$coefficients[1],
-                      beta_1 = quantile_model_fit$location$coefficients[2],
-                      beta_2 = quantile_model_fit$location$coefficients[3])
+                      beta_0 = new_coeff[1],
+                      beta_1 = new_coeff[2],
+                      beta_2 = new_coeff[3])
     }
     results_df = bind_rows(results_df, result) 
   }
@@ -197,8 +249,8 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
           tibble(year = .x$year[1],
                  #creates a spline function to go from tau to temp or temp to tau. 
                  #the function depends on the year
-                 tau_to_temp = list(splinefun(.x$quantile,.x$quant_value,  method = 'monoH.FC')),
-                 temp_to_tau = list(splinefun(.x$quant_value,.x$quantile,  method = 'monoH.FC')))
+                 tau_to_temp = list(splinefun(.x$quantile,.x$quant_value,  method = 'monoH.FC')) )
+                 #temp_to_tau = list(splinefun(.x$quant_value,.x$quantile,  method = 'monoH.FC'))) --> not used in this code
         }, .keep = T) %>%
         plyr::rbind.fill() %>%
         as_tibble() %>%
@@ -227,5 +279,27 @@ estimate_RMSE <- function (fitting_quantiles, obs_data, model_name, quantiles_to
   rmse_val = total_rmse(pred, test_data_quantile)
   
   return(rmse_val)
+}
+
+
+estimate <- function (fitting_quantiles, obs_data, model_name, quantiles_to_estimate, test_data){
+  obs_smoothed_quantiles = estimate_parameters (fitting_quantiles, obs_data, model_name)
+  
+  #compute the quantiles of test_data here
+  test_data_quantile <- test_data %>%
+    select(-id) %>%
+    mutate(year = year(date)) %>%
+    select(-date) %>%
+    group_by(stn, year) %>%
+    summarise(quantiles = list(as.numeric(quantile(maxtp, probs = quantiles_to_estimate, na.rm = TRUE))))%>%
+    select(c(year, stn, quantiles))
+  
+  pred = extract_quantile(obs_smoothed_quantiles, quantiles_to_estimate) #predicting the quantiles
+  
+  mae_val = total_mae(pred, test_data_quantile)
+  
+  rmse_val = total_rmse(pred, test_data_quantile)
+
+  return(c(mae_val, rmse_val))
 }
 

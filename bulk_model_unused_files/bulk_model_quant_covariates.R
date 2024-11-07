@@ -22,7 +22,7 @@ fit_clim_quants = T # bool, re-estimate clim quantiles?
 
 if(fit_clim_quants){
   
-  file.remove(paste0("Data/processed/quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
+  file.remove(paste0("bulk_model_unused_files/processed/quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
   
   # Loop over each quantile and fit the quantile regression model
   for(q in seq_along(quantiles_to_estimate_bulk)){
@@ -37,15 +37,21 @@ if(fit_clim_quants){
     # Set the 'value' column for current quantile
     obs_data_for_quant_reg$value = obs_data_for_quant_reg$value %>% lapply(`[[`, q) %>% unlist
     
+    if (q==1 | q==7 | q==8){
+      init_coeff = c(-1, 1)
+    } else {
+      init_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2])
+    }
+    
     # Fit the quantile regression model using EVGAM package with asymmetric Laplace distribution
     quantile_model_fit <- evgam(maxtp ~ value, obs_data_for_quant_reg,
-                                family = "ald", ald.args = list(tau = zeta))
+                                family = "ald", ald.args = list(tau = zeta), init_coeff)
     
     # Save the fitted parameter estimates for each quantile
     tibble(tau = zeta,
            beta_0 = quantile_model_fit$location$coefficients[1],
            beta_1 = quantile_model_fit$location$coefficients[2]) %>%
-      write_csv(paste0("Data/processed/quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
+      write_csv(paste0("bulk_model_unused_files/processed/quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
   }
 }
 
@@ -53,7 +59,7 @@ if(fit_clim_quants){
 #regression coeff were not already computed
 
 # --- read in fitted quantile regression coefficients
-quant_reg_model_pars = read_csv(paste0("Data/processed/quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
+quant_reg_model_pars = read_csv(paste0("bulk_model_unused_files/processed/quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
                                 col_names = c('tau', 'beta_0', 'beta_1'))
 
 # # --- creates a tibble with each station and its quantile model
@@ -108,7 +114,7 @@ obs_smoothed_quantiles = obs_data %>%
 
 
 # save quantile models
-obs_smoothed_quantiles %>% saveRDS(paste0("output/quant_models_num_quantiles_",num_quantiles,".csv"))
+#obs_smoothed_quantiles %>% saveRDS(paste0("output/quant_models_num_quantiles_",num_quantiles,".csv"))
 #obs_smoothed_quantiles = readRDS("output/quant_models")
 
 
@@ -118,9 +124,6 @@ lambda_thresh_ex = obs_data %>%
   group_map(~{
     
     print(.x$stn[1])
-    
-    print(obs_smoothed_quantiles%>%
-            filter(stn == .x$stn[1]))
     
     # Calculate exceedance probability for threshold_9 
     #(threshold_9 using a regression model is an estimate of the 0.9 obs quantile)

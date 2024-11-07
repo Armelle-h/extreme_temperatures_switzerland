@@ -21,7 +21,7 @@ fit_clim_quants = T # bool, re-estimate clim quantiles?
 
 if(fit_clim_quants){
   
-  file.remove(paste0("Data/processed/no_covariate_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
+  file.remove(paste0("bulk_model_unused_files/processed/no_covariate_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
   
   # Loop over each quantile and fit the quantile regression model
   for(q in seq_along(quantiles_to_estimate_bulk)){
@@ -36,19 +36,25 @@ if(fit_clim_quants){
     # Set the 'value' column for current quantile
     obs_data_for_quant_reg$value = obs_data_for_quant_reg$value %>% lapply(`[[`, q) %>% unlist
     
+    if (q==1){
+      init_coeff = 6
+    } else {
+      init_coeff = quantile_model_fit$location$coefficients[1]
+    }
+    
     # Fit the quantile regression model using EVGAM package with asymmetric Laplace distribution
     quantile_model_fit <- evgam(maxtp ~ 1, obs_data_for_quant_reg,
-                                family = "ald", ald.args = list(tau = zeta))
+                                family = "ald", ald.args = list(tau = zeta), init_coeff)
     
     # Save the fitted parameter estimates for each quantile
     tibble(tau = zeta,
            beta_0 = quantile_model_fit$location$coefficients[1]) %>%
-      write_csv(paste0("Data/processed/no_covariate_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
+      write_csv(paste0("bulk_model_unused_files/processed/no_covariate_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
   }
 }
 
 # --- read in fitted quantile regression coefficients
-quant_reg_model_pars = read_csv(paste0("Data/processed/no_covariate_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
+quant_reg_model_pars = read_csv(paste0("bulk_model_unused_files/processed/no_covariate_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
                                 col_names = c('tau', 'beta_0'))
 
 # # --- creates a tibble with each station and its quantile model
