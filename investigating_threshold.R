@@ -37,7 +37,8 @@ clim_thresh_values_list = list()
 
 for (i in seq_along(files)){
   
-  clim_data = fread(files[[i]])
+  clim_data = fread(files[[i]])%>%
+    filter(id %%1000 == 0)
   
   clim_data$maxtp = as.integer(clim_data$maxtp)
   
@@ -56,7 +57,9 @@ for (i in seq_along(files)){
   gc()
 }
 
-clim_data = do.call(rbind, clim_thresh_values_list)
+clim_data = do.call(rbind, clim_thresh_values_list)%>%
+  select(c("id", "clim_thresh_value_85", "clim_thresh_value_9", "clim_thresh_value_95"))%>%
+  unique()
 
 rm(clim_thresh_values_list)
 
@@ -75,8 +78,8 @@ linearity = function(scale_u, scale_u_0, u, u_0){
 clim_data = clim_data %>%
   rowwise() %>%
   mutate(
-    res_95_90 = linearity(scale_95, scale_90, clim_thresh_value_95, clim_thresh_value_90),
-    res_90_85 = linearity(scale_90, scale_85, clim_thresh_value_90, clim_thresh_value_85),
+    res_95_90 = linearity(scale_95, scale_9, clim_thresh_value_95, clim_thresh_value_9),
+    res_90_85 = linearity(scale_9, scale_85, clim_thresh_value_9, clim_thresh_value_85),
     res_95_85 = linearity(scale_95, scale_85, clim_thresh_value_95, clim_thresh_value_85)
   ) %>%
   ungroup()
