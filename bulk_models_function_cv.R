@@ -281,6 +281,12 @@ estimate_RMSE <- function (fitting_quantiles, obs_data, model_name, quantiles_to
   return(rmse_val)
 }
 
+estimate_quantiles <- function(data, quantiles) {
+  sapply(quantiles, function(tau) {
+    fit <- evgam(maxtp ~ 1, data, family = "ald", ald.args = list(tau = tau))
+    fit$location$coefficients[1]
+  })
+}
 
 estimate <- function (fitting_quantiles, obs_data, model_name, quantiles_to_estimate, test_data){
   obs_smoothed_quantiles = estimate_parameters (fitting_quantiles, obs_data, model_name)
@@ -294,12 +300,25 @@ estimate <- function (fitting_quantiles, obs_data, model_name, quantiles_to_esti
     summarise(quantiles = list(as.numeric(quantile(maxtp, probs = quantiles_to_estimate, na.rm = TRUE))))%>%
     select(c(year, stn, quantiles))
   
+  
+  #test_data_quantile_ALD <- test_data %>%  --> takes too long to compute
+  #group_by(stn, year) %>%
+  #mutate(
+  #quantiles_ALD = list(estimate_quantiles(cur_data(), quantiles_to_estimate))
+  #) %>%
+  #ungroup()
+  
   pred = extract_quantile(obs_smoothed_quantiles, quantiles_to_estimate) #predicting the quantiles
   
   mae_val = total_mae(pred, test_data_quantile)
   
   rmse_val = total_rmse(pred, test_data_quantile)
+  
+  #mae_val_ALD = total_mae(pred, test_data_quantile_ALD)
+  
+  #rmse_val_ALD = total_rmse(pred, test_data_quantile_ALD)
 
-  return(c(mae_val, rmse_val))
+  #return(c(mae_val, rmse_val, mae_val_ALD, rmse_val_ALD))
+  return (c(mae_val, rmse_val)
 }
 
