@@ -83,3 +83,43 @@ legend("topleft",                    # Position of the legend
        bty = "n",                       # Remove border around the legend
        cex = 1.2)                       # Size of the legend text
 
+
+gc()
+rm(list = ls())
+library(tidyverse)
+library(evgam)
+setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
+
+L = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
+
+num_quantiles = 30
+
+obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv") %>%
+  mutate(year=lubridate::year(date))
+
+threshold_9_df = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv")) %>%
+  select(stn, threshold_9) %>%
+  filter(stn %in% c("MAG", "JUN", "RIE", "LSN"))%>%
+  unique()
+
+threshold_MAG = threshold_9_df[threshold_9_df$stn == "MAG", ]$threshold_9[[1]]
+threshold_JUN = threshold_9_df[threshold_9_df$stn == "JUN", ]$threshold_9[[1]]
+threshold_RIE = threshold_9_df[threshold_9_df$stn == "RIE", ]$threshold_9[[1]]
+threshold_LSN = threshold_9_df[threshold_9_df$stn == "LSN", ]$threshold_9[[1]]
+
+MAG_df <- obs_data[obs_data$stn == "MAG", ]
+JUN_df <- obs_data[obs_data$stn == "JUN", ]
+RIE_df <- obs_data[obs_data$stn == "RIE", ]
+LSN_df <- obs_data[obs_data$stn == "LSN", ]
+
+
+# Plotting histogram of col3 in the filtered data
+hist(MAG_df$maxtp,
+     breaks = 30,
+     main = "Magadino/Cadenazzo, 203 m",
+     xlab = "max tp (°C)",
+     col = "skyblue",
+     border = "black")
+
+
+
