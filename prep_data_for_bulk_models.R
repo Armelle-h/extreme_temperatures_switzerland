@@ -31,7 +31,7 @@ tic.clearlog()
 
 tic("Timing the group processing")
 
-num_quantiles = 40
+num_quantiles = 30
 quantiles_to_estimate_bulk = seq(0.001,0.99,length.out = num_quantiles)
 
 raw_obs_data<- read.csv("Data/processed/1971_2022_JJA_obs_data_bulk_model.csv", header=TRUE)

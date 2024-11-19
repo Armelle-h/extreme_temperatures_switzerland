@@ -1,3 +1,5 @@
+# This script fits and saves quantile regression model and lambda estimates
+
 #until spline models for climate data, takes 12 minutes to run
 
 gc()
@@ -46,14 +48,14 @@ if(fit_clim_quants){
     # Set the 'value' column for current quantile
     obs_data_for_quant_reg$value = obs_data_for_quant_reg$value %>% lapply(`[[`, q) %>% unlist
     
-    if(q==1 | q==17 | q==18){
+    if(q==1 | q== 17){
       inits_coeff = c(-2, 1, 3)
-    }
-    if (q == 25){
+    } 
+    if (q==25){
       inits_coeff = c(-3, 0.5, 2)
     }
-    if (!(q %in%  c(1, 17, 18, 25))) {
-      #to ensure smoothness in the estimated coefficients
+    
+    if (!(q==1| q==17 | q==25)) {
       inits_coeff = c(quantile_model_fit$location$coefficients[1],quantile_model_fit$location$coefficients[2],quantile_model_fit$location$coefficients[3])
     }
     
