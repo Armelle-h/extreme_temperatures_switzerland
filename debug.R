@@ -1,71 +1,70 @@
-source('gpd_models.R') #for now, might need to do a bit of relocating
+gc() 
+rm(list = ls())
 
+setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
+library(tidyverse)
+library(data.table)
+library(sf)
+library(rnaturalearth)
 
-fit_uncorrected_models = T
-fit_true_models = T
+obs_data = read.csv("Data/processed/1971_2022_JJA_obs_data_bulk_model.csv")
 
-#observed data that has exceeded the threshold
-obs_data = vroom::vroom("Data/Observed_data/obs_data_95_gpd_model.csv") #computed in clim_data_gpd_model_threshold_95
+files = list.files(path = "Data/Climate_data/By_id", full.names = TRUE)
+clim_thresh_values_list = list()
 
-legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
-
-#joining obs data with the altitude 
-obs_data = obs_data %>%
-  left_join(legend_data %>% select(stn, Altitude.m.), by="stn")%>%
-  rename(altitude = Altitude.m.)
-
-#adding threshold 95 
-
-threshold_95_df = readRDS(paste0("Data/processed/obs_data_95_for_bulk_model_num_quantiles_",num_quantiles,".csv"))%>%
-  dplyr::select(threshold_95, id)%>%
-  unique()
-
-#lambda associated with observed data, vary the quantile model
-lambda_df = vroom::vroom("Data/processed/glob_anomaly_95_thresh_exceedance_lambda_num_quantiles_30.csv") 
-
-glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
-
-glob_anomaly_reshaped = glob_anomaly %>%
-  select(c("year", "JJA"))%>%
-  rename(glob_anom = JJA)
-
-obs_data = obs_data %>% 
-  mutate(year = year(date)) %>%
-  left_join(lambda_df, by=c("stn", "year")) %>%
-  left_join(glob_anomaly_reshaped, by = "year") %>%
-  left_join(threshold_95_df, by="id")
-
-#loading the covariates
-covars = obs_data %>%
-  dplyr::select(stn, year, scale_95, glob_anom, thresh_exceedance_95, threshold_95, altitude) %>%
-  unique()
-
+for (i in seq_along(files)){
   
-  #extracting the excess data
-  extreme_dat_true = obs_data %>%
-    mutate(excess = maxtp - threshold_95) %>%
-    filter(excess > 0)
+  clim_data = fread(files[[i]])
   
-  #fit and save model 0, 1, 2  #you fit on the OBSERVED data. So enough to have altitude info only on the observed points :)
+  clim_data$maxtp = as.integer(clim_data$maxtp)
   
-  #reminder: scale_95 is the scaling parameter of the climate model (computed in clim_data_gpd_model)
+  sing_clim_thresh_values = clim_data %>%
+    filter(id %in% unique(obs_data$id))
   
-  L_0 = list(c(0.5, 0.1, -0.03, -0.1), c(-1, 0.5, 0.3, -0.1), c(-0.1, 0.01, -0.01, -0.1))
+  clim_thresh_values_list[[i]] = sing_clim_thresh_values
   
-  for (init_par in L_0){
-    p = fit_mod_3(extreme_dat_true$excess, extreme_dat_true$scale_95,
-                  extreme_dat_true$altitude, init_par)
-    print(p)
-    print(ngll_3(p))
-  }
-  
-  fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_95)  
-  
-  fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_95,
-            extreme_dat_true$glob_anom)  
-  
-  fit_mod_2(extreme_dat_true$excess, extreme_dat_true$scale_95,
-            extreme_dat_true$glob_anom, extreme_dat_true$altitude)  
-  
-  fit_mod_3(extreme_dat_true$excess, extreme_dat_true$scale_95,
-            extreme_dat_true$altitude)  
+  #to free memory
+  rm(clim_data)
+  gc()
+}
+
+clim_thresh_values = do.call(rbind, clim_thresh_values_list)
+
+date_id = read.csv("Data/id_date_correspondance.csv")
+
+clim_thresh_values = clim_thresh_values %>%
+  left_join(date_id, by = "date_id")%>%
+  select(-date_id)%>%
+  rename(maxtp_clim = maxtp)
+
+obs_clim_data = obs_data %>%
+  left_join(clim_thresh_values, by = c("id", "date"))
+
+
+obs_clim_data = obs_clim_data %>%
+  mutate(tp_diff = abs(maxtp-maxtp_clim))
+
+
+legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")%>%
+  rename(altitude = Altitude.m.)%>%
+  select(stn, altitude)
+
+obs_clim_data = obs_clim_data %>%
+  left_join(legend_data, by = "stn")
+
+T = obs_clim_data %>% filter(tp_diff>=5) %>% select(stn, tp_diff) %>%count(stn)
+T = T  %>% left_join(legend_data%>%select(stn, longitude, latitude, Nom, Altitude.m.)  , by = "stn" )
+
+switzerland <- ne_countries(country = "Switzerland", scale = "medium", returnclass = "sf")
+
+points_sf <- st_as_sf(T, coords = c("longitude", "latitude"), crs = 4326)
+
+ggplot(data = switzerland) +
+  geom_sf(fill = "lightblue", color = "black") +  # Plot Switzerland
+  geom_sf(data = points_sf, aes(size = n), alpha=0.7) + 
+  ggtitle("Stations where the climate model mis-estimated obs data \n by more that 8 degrees, size wrt number of mismeasurements") +
+  theme_minimal() +
+  labs(x = "Longitude", y = "Latitude")
+
+
+

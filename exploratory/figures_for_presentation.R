@@ -90,17 +90,76 @@ library(tidyverse)
 library(evgam)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
-L = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
+legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")%>%
+  rename(altitude = Altitude.m.)%>%
+  select(stn, altitude)
 
 num_quantiles = 30
 
-obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv") %>%
-  mutate(year=lubridate::year(date))
+#contains clim_thresh_9   the estimation of the 0.9 climate quantile
+obs_data = read.csv("Data/processed/1971_2022_JJA_obs_data_bulk_model.csv") %>%
+  left_join(legend_data, by="stn"  )
 
-threshold_9_df = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv")) %>%
-  select(stn, threshold_9) %>%
-  filter(stn %in% c("MAG", "JUN", "RIE", "LSN"))%>%
-  unique()
+#obs_data$threshold_9 = quantile_model_fit$location$fitted
+
+quantile_model <-  maxtp ~ clim_thresh_value_9
+quantile_model_fit <- evgam(quantile_model, obs_data, family = "ald", ald.args = list(tau = 0.9))
+
+obs_data$obs_threshold = quantile_model_fit$location$fitted
+
+obs_data$obs_threshold_no_reg = obs_data$clim_thresh_value_9/2 + obs_data$obs_quant_9/2
+
+stn_name = "DAV"
+
+# Plotting histogram of col3 in the filtered data
+hist((obs_data %>%filter(stn == stn_name))$maxtp,
+     breaks = 40,
+     main = stn_name,
+     xlab = "max tp (°C)",
+     col = "skyblue",
+     border = "black")
+
+abline(v = (obs_data %>%filter(stn == stn_name))$obs_threshold[[1]], col = "purple", lwd = 2, lty = 2) #threshold with ALD
+
+abline(v = (obs_data %>%filter(stn == stn_name))$obs_threshold_no_reg[[1]], col = "black", lwd = 2, lty = 2) #threshold with both clim and obs
+
+abline(v = (obs_data %>%filter(stn == stn_name))$obs_quant_9[[1]], col = "red", lwd = 2, lty = 2) #threshold with obs
+
+
+obs_data = obs_data %>%
+  group_by(stn)%>%
+  mutate(obs_quant_9 = quantile(maxtp, 0.9))
+
+obs_data = obs_data %>%
+  mutate(quantile_diff = abs(obs_quant_9-clim_thresh_value_9))
+
+obs_data = obs_data %>%
+  mutate(quantile_diff_neg = obs_quant_9-clim_thresh_value_9)
+
+count_stn = obs_data %>%
+  count(stn)
+
+
+T = obs_data %>% select(stn, quantile_diff_neg, altitude) %>% unique()
+
+T = T %>%
+  left_join(count_stn, by = "stn")
+
+
+
+
+
+
+
+
+
+#obs_data$threshold_9 = quantile_model_fit$location$fitted
+
+
+#threshold_9_df = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv")) %>%
+#  select(stn, threshold_9) %>%
+#  filter(stn %in% c("MAG", "JUN", "RIE", "LSN"))%>%
+#  unique()
 
 threshold_MAG = threshold_9_df[threshold_9_df$stn == "MAG", ]$threshold_9[[1]]
 threshold_JUN = threshold_9_df[threshold_9_df$stn == "JUN", ]$threshold_9[[1]]

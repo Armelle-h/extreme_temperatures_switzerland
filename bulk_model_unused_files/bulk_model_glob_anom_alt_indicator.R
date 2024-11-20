@@ -47,17 +47,19 @@ fit_clim_quants = T # bool, re-estimate clim quantiles?
 
 if(fit_clim_quants){
   
-  file.remove(paste0("Data/processed/glob_anom_indicator_alt_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
+  file.remove(paste0("Data/processed/debug_glob_anom_indicator_alt_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
   
   # Loop over each quantile and fit the quantile regression model
   for(q in seq_along(quantiles_to_estimate_bulk)){
     
-    if (q!= 15){next}
-    
-    if(q==1 |q == 15){
-      inits_coeff = c(-2, 1, 3, -1)
+    if(q==1 ){
+      inits_coeff = c(-3, 1, 3, -1)
     } else{
       inits_coeff = c(quantile_model_fit$location$coefficients[1],quantile_model_fit$location$coefficients[2],quantile_model_fit$location$coefficients[3])
+    }
+    
+    if (q == 23){
+      inits_coeff = c(1, 2, -6, 1)
     }
     
     #obs_data_for_quant_reg = obs_data
@@ -72,7 +74,7 @@ if(fit_clim_quants){
     obs_data_for_quant_reg$value = obs_data_for_quant_reg$value %>% lapply(`[[`, q) %>% unlist
     
     # Fit the quantile regression model using EVGAM package with asymmetric Laplace distribution
-    quantile_model_fit <- evgam(maxtp ~ value + glob_anom + sigmoid(altitude, 1500), obs_data_for_quant_reg,
+    quantile_model_fit <- evgam(maxtp ~ (1-sigmoid(altitude, 1500))*value + glob_anom + sigmoid(altitude, 1500)*value, obs_data_for_quant_reg,
                                 family = "ald", inits = inits_coeff, ald.args = list(tau = zeta))
     
     # Save the fitted parameter estimates for each quantile
@@ -82,7 +84,7 @@ if(fit_clim_quants){
            beta_2 = quantile_model_fit$location$coefficients[3],
            beta_3 = quantile_model_fit$location$coefficients[4]
            ) %>%
-      write_csv(paste0("Data/processed/glob_anom_indicator_alt_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
+      write_csv(paste0("Data/processed/debug_glob_anom_indicator_alt_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
   }
 }
 
@@ -90,8 +92,41 @@ if(fit_clim_quants){
 #regression coeff were not already computed
 
 # --- read in fitted quantile regression coefficients
-quant_reg_model_pars = read_csv(paste0("Data/processed/glob_anom_indicator_alt_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
+quant_reg_model_pars = read_csv(paste0("Data/processed/debug_glob_anom_indicator_alt_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
                                 col_names = c('tau', 'beta_0', 'beta_1', 'beta_2', 'beta_3'))
+
+
+
+stn_name = "AAR"
+
+clim_vals <<- obs_data %>%
+  filter(stn == stn_name) %>%
+  dplyr::select(quantile, value) %>%
+  unique() %>%
+  pull(value) %>%
+  unlist()
+
+# predict (observed) quantile for each year and site
+quant_reg_pars = quant_reg_model_pars %>%
+  arrange(tau)
+
+
+alt_df = legend_data%>%filter(stn == stn_name) %>%select(altitude)
+alt = alt_df$altitude
+
+res = c()
+for(q in seq_along(quantiles_to_estimate_bulk)){
+  qpars = quant_reg_pars[q,]
+  # Calculate the predicted quantile value using the regression parameters
+  res = rbind(res,
+              tibble(quantile =  qpars$tau,
+                     year = temporal_covariates_year,
+                     quant_value = qpars$beta_0 + qpars$beta_1*(1-sigmoid(alt, 1500))*clim_vals[q] + (qpars$beta_2)*(temporal_covariates_glob_anom) 
+                     + (qpars$beta_3) *sigmoid(alt, 1500)*clim_vals[q] ) )
+}
+
+
+
 
 # # --- creates a tibble with each station and its quantile model
 
@@ -124,7 +159,7 @@ obs_smoothed_quantiles = obs_data %>%
                   tibble(quantile =  qpars$tau,
                          year = temporal_covariates_year,
                          quant_value = qpars$beta_0 + qpars$beta_1*clim_vals[q] + (qpars$beta_2)*(temporal_covariates_glob_anom) 
-                         + (qpars$beta_3) *sigmoid(alt, 1500) ) )
+                         + (qpars$beta_3) *sigmoid(alt, 1500)*clim_vals[q] ) )
       }
     
     print(paste0("Interpolating quantile estimates for ", .x$stn[1]))
@@ -146,6 +181,74 @@ obs_smoothed_quantiles = obs_data %>%
   }, .keep = T) %>%
   plyr::rbind.fill() %>%
   as_tibble()
+
+
+num_quantiles = 100 
+quantiles_to_estimate = seq(0.001,0.99,length.out = num_quantiles)
+
+obs_data_quantile <- obs_data %>%
+  select(-id) %>%
+  mutate(year = year(date)) %>%
+  select(-date) %>%
+  group_by(stn, year) %>%
+  summarise(quantiles = list(as.numeric(quantile(maxtp, probs = quantiles_to_estimate, na.rm = TRUE))))
+
+extract_quantile <- function(df){
+  df_pred_quantiles = df %>%
+    mutate(quantiles = map(tau_to_temp, ~ sapply(quantiles_to_estimate, .x))) %>%
+    select(year, stn, quantiles)
+}
+
+pred = extract_quantile(obs_smoothed_quantiles)
+
+calculate_rmse <- function(list1, list2) {
+  if (length(list1) == length(list2)) {
+    return(sqrt(mean((list1 - list2)^2, na.rm = TRUE)))  # Calculate RMSE
+  } else {
+    return(NA)  # Return NA if the lengths are different
+  }
+}
+
+total_rmse <- function(df){
+  RMSE_df = df%>%
+    full_join(obs_data_quantile, by = c("stn", "year"), suffix = c("_pred", "_empirical"))
+  
+  # Calculate the RMSE for corresponding quantile lists
+  results <- RMSE_df %>%
+    mutate(rmse = map2_dbl(quantiles_pred, quantiles_empirical, calculate_rmse))
+  
+  # Sum the RMSE over all years and stations
+  total_rmse_df <- results %>%
+    summarise(total_rmse = sqrt(sum(rmse^2, na.rm = TRUE) / sum(!is.na(rmse)))) 
+  
+  total_rmse_value <- total_rmse_df$total_rmse
+}
+
+rmse_val = total_rmse(pred)
+
+print(rmse_val)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 obs_smoothed_quantiles %>% saveRDS(paste0("output/glob_anom_indicator_alt_quant_models_num_quantiles_",num_quantiles,".csv"))

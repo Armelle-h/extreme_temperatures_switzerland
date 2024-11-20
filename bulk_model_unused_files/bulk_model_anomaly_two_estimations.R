@@ -16,7 +16,7 @@ obs_data = obs_data %>%
   left_join(L_alt, by="stn")
 
 obs_data_1 = obs_data %>%
-  filter(altitude<2000)
+  filter(altitude<1500)
   
 obs_data_2 = obs_data  %>%
   anti_join(obs_data_1)
@@ -48,8 +48,6 @@ if(fit_clim_quants){
   
   # Loop over each quantile and fit the quantile regression model
   for(q in seq_along(quantiles_to_estimate_bulk)){
-    
-    if (q<=27){next}
     
     #obs_data_for_quant_reg = obs_data
     obs_data_for_quant_reg = rlang::duplicate(obs_data, shallow = FALSE)
@@ -112,7 +110,7 @@ obs_data = obs_data %>%
 
 if(fit_clim_quants){
   
-  file.remove(paste0("Data/processed/debug_2_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
+  file.remove(paste0("Data/processed/v2_debug_2_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
   
   # Loop over each quantile and fit the quantile regression model
   for(q in seq_along(quantiles_to_estimate_bulk)){
@@ -144,7 +142,7 @@ if(fit_clim_quants){
            beta_0 = quantile_model_fit$location$coefficients[1],
            beta_1 = quantile_model_fit$location$coefficients[2],
            beta_2 = quantile_model_fit$location$coefficients[3]) %>%
-      write_csv(paste0("Data/processed/debug_2_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
+      write_csv(paste0("Data/processed/v2_debug_2_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
   }
 }
 
@@ -191,8 +189,22 @@ stations_below_2000 = L%>%
 quant_reg_model_pars_1 = read_csv(paste0("Data/processed/debug_1_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
                                 col_names = c('tau', 'beta_0', 'beta_1', 'beta_2'))
 # --- read in fitted quantile regression coefficients
-quant_reg_model_pars_2 = read_csv(paste0("Data/processed/debug_2_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
+quant_reg_model_pars_2 = read_csv(paste0("Data/processed/v2_debug_2_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
                                 col_names = c('tau', 'beta_0', 'beta_1', 'beta_2'))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 quantiles_to_estimate_bulk = seq(0.001,0.99,length.out = num_quantiles)
 

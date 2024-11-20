@@ -33,7 +33,7 @@ obs_data = obs_data %>%
 
 # ---- get covariates for prediction
 temporal_covariates = obs_data %>%
-  dplyr::select(year, altitude, glob_anom) %>% 
+  dplyr::select(stn, year, altitude, glob_anom) %>% 
   unique() %>%
   arrange(year)
 
