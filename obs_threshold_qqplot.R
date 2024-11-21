@@ -24,18 +24,18 @@ glob_anomaly_reshaped = glob_anomaly %>%
   select(c("year", "JJA"))%>%
   rename(glob_anom = JJA)
 
-threshold_9_df = vroom::vroom("Data/processed/obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")%>%
-  dplyr::select(obs_threshold, stn)%>%
-  rename(threshold_9 = obs_threshold)%>%
+threshold_9_df = vroom::vroom("Data/processed/full_obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")%>%
+  dplyr::select(obs_quant_9, stn)%>%
+  rename(threshold_9 = obs_quant_9)%>%
   unique()
 
-lambda_df = vroom::vroom(paste0("Data/processed/obs_threshold_glob_anomaly_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv") )
+#lambda_df = vroom::vroom(paste0("Data/processed/full_obs_threshold_glob_anomaly_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv") )
 
 
 #"stn"   "date"    "maxtp"  "id"  "scale_9"   "year" "thresh_exceedance_9" "threshold_9" "glob_anom"
 obs_data = obs_data %>% 
   mutate(year = year(date)) %>%
-  left_join(lambda_df, by=c("stn", "year")) %>%
+  #left_join(lambda_df, by=c("stn", "year")) %>%
   left_join(glob_anomaly_reshaped, by = "year") %>%
   left_join(threshold_9_df, by="stn")
 
@@ -45,7 +45,7 @@ obs_smoothed_quantiles = readRDS(paste0("output/glob_anomaly_quant_models_num_qu
 
 marg_mod = 'mod_1'
 
-this_fit_mod = read_csv("output/gpd_model_fits/obs_threshold_model_1_true.csv") %>%
+this_fit_mod = read_csv("output/gpd_model_fits/full_obs_threshold_model_1_true.csv") %>%
   unlist() %>% as.numeric
 
 pred <- my_predict_1(this_fit_mod, obs_data$scale_9, obs_data$glob_anom) #change according to model !!!!!!!!!!
@@ -170,8 +170,6 @@ bulk_and_tail = rbind(obs_data %>%
   },.keep = T) %>%
   plyr::rbind.fill()%>%
   as_tibble() 
-
-colnames(standardised_qq)
 
 library(grid)
 

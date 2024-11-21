@@ -5,7 +5,7 @@ setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
 num_quantiles = 30
 
-obs_data = read.csv("Data/processed/obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")
+obs_data = read.csv("Data/processed/full_obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")
 
 temporal_covariates_year = sort(unique(obs_data$year))
 
@@ -22,7 +22,7 @@ lambda_thresh_ex = obs_data %>%
     thresh_exceedance_9 = obs_smoothed_quantiles%>%
       filter(stn == .x$stn[1]) %>%
       pull(temp_to_tau) %>%
-      sapply(function(x) sapply(.x$obs_threshold[1], x)) #threshold defined using empirical obs and clim quantile
+      sapply(function(x) sapply(.x$obs_quant_9[1], x)) #threshold defined using empirical obs and clim quantile
     
     
     tibble(stn = .x$stn[1],
