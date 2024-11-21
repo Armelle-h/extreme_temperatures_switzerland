@@ -77,6 +77,7 @@ if(fit_clim_quants){
 quant_reg_model_pars = read_csv(paste0("Data/processed/glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
                                 col_names = c('tau', 'beta_0', 'beta_1', 'beta_2'))
 
+
 # # --- creates a tibble with each station and its quantile model
 
 # For each station, interpolate the quantiles and predict quantile values for each year

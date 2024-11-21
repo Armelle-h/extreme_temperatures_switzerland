@@ -100,6 +100,10 @@ num_quantiles = 30
 obs_data = read.csv("Data/processed/1971_2022_JJA_obs_data_bulk_model.csv") %>%
   left_join(legend_data, by="stn"  )
 
+obs_data = obs_data %>%
+  group_by(stn)%>%
+  mutate(obs_quant_9 = quantile(maxtp, 0.9))
+
 #obs_data$threshold_9 = quantile_model_fit$location$fitted
 
 quantile_model <-  maxtp ~ clim_thresh_value_9
@@ -109,7 +113,7 @@ obs_data$obs_threshold = quantile_model_fit$location$fitted
 
 obs_data$obs_threshold_no_reg = obs_data$clim_thresh_value_9/2 + obs_data$obs_quant_9/2
 
-stn_name = "DAV"
+stn_name = "TICHI"
 
 # Plotting histogram of col3 in the filtered data
 hist((obs_data %>%filter(stn == stn_name))$maxtp,
@@ -124,6 +128,9 @@ abline(v = (obs_data %>%filter(stn == stn_name))$obs_threshold[[1]], col = "purp
 abline(v = (obs_data %>%filter(stn == stn_name))$obs_threshold_no_reg[[1]], col = "black", lwd = 2, lty = 2) #threshold with both clim and obs
 
 abline(v = (obs_data %>%filter(stn == stn_name))$obs_quant_9[[1]], col = "red", lwd = 2, lty = 2) #threshold with obs
+
+
+
 
 
 obs_data = obs_data %>%

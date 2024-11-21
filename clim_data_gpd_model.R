@@ -310,9 +310,9 @@ scales_9 <- c(result_1$scales_, result_2$scales_, result_3$scales_, result_4$sca
 
 saveRDS(loglik_optimal_shape, "loglik_optimal_shape.rds") #loglikelihood computed for all indexes 
 
-saveRDS(scales_9, "scales_9.rds")
+saveRDS(scales_9, "Data/clim_data_gpd_model/scales_9.rds")
 
-scales_9 = readRDS("scales_9.rds")
+scales_9 = readRDS("Data/clim_data_gpd_model/scales_9.rds")
 
 # --- save estimates on climate grid
 

@@ -28,12 +28,13 @@ obs_data = obs_data %>%
 
 #adding threshold 9 
 
-threshold_9_df = vroom::vroom("Data/processed/1971_2022_JJA_obs_data_bulk_model.csv")%>%
-  dplyr::select(threshold_9, id)%>%
+threshold_9_df = vroom::vroom("Data/processed/obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")%>%
+  dplyr::select(obs_threshold, stn)%>%
+  rename(threshold_9 = obs_threshold)%>%
   unique()
 
 #lambda associated with observed data, vary the quantile model
-lambda_df = vroom::vroom(paste0("Data/processed/glob_anomaly_thresh_exceedance_lambda_num_quantiles_", num_quantiles, ".csv") )
+lambda_df = vroom::vroom(paste0("Data/processed/obs_threshold_glob_anomaly_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv") )
 
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
 
@@ -45,7 +46,7 @@ obs_data = obs_data %>%
   mutate(year = year(date)) %>%
   left_join(lambda_df, by=c("stn", "year")) %>%
   left_join(glob_anomaly_reshaped, by = "year") %>%
-  left_join(threshold_9_df, by="id")
+  left_join(threshold_9_df, by="stn")
 
 #loading the covariates
 covars = obs_data %>%
@@ -63,31 +64,27 @@ if(fit_true_models){
   #fit and save model 0, 1, 2  #you fit on the OBSERVED data. So enough to have altitude info only on the observed points :)
   
   #reminder: scale_9 is the scaling parameter of the climate model (computed in clim_data_gpd_model)
-
-    
-    fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_9)  %>%
-      matrix() %>% t() %>% as.data.frame() %>%
-      write_csv("output/gpd_model_fits/model_0_true.csv")
+  
+  
+  fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_9, initial_pars = c(0.8, -0.05, -0.1) )  %>%
+    matrix() %>% t() %>% as.data.frame() %>%
+    write_csv("output/gpd_model_fits/obs_threshold_model_0_true.csv")
   
   fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_9,
-            extreme_dat_true$glob_anom)  %>%
+            extreme_dat_true$glob_anom, initial_pars = c(0.2, 0.5, 0.2, -0.1))  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/model_1_true.csv")
+    write_csv("output/gpd_model_fits/obs_threshold_model_1_true.csv")
   
   fit_mod_2(extreme_dat_true$excess, extreme_dat_true$scale_9,
-            extreme_dat_true$glob_anom, extreme_dat_true$altitude)  %>%
+            extreme_dat_true$glob_anom, extreme_dat_true$altitude, initial_pars = c(0.1, 0.4, 0.01, 0.2, 0.01, -0.1))  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/model_2_true.csv")
+    write_csv("output/gpd_model_fits/obs_threshold_model_2_true.csv")
   
   fit_mod_3(extreme_dat_true$excess, extreme_dat_true$scale_9,
-            extreme_dat_true$altitude)  %>%
+            extreme_dat_true$altitude, initial_pars = c(0.2,  0.5,  0.02, -0.1))  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/model_3_true.csv")
+    write_csv("output/gpd_model_fits/obs_threshold_model_3_true.csv")
   
 }
-
-
-
-
 
 
