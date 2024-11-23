@@ -147,7 +147,15 @@ plt_clim = grid_lonlat %>%  #the weird position of the points comes from the fac
   labs(col = '2ln(LR)', x = '', y = '')
 
 
-obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv") %>%
+obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv") 
+
+threshold_9_df = vroom::vroom("Data/processed/obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")%>%
+  dplyr::select(obs_threshold, stn)%>%
+  rename(threshold_9 = obs_threshold)%>%
+  unique()
+
+obs_dat = obs_data %>% 
+  left_join(threshold_9_df, by="stn")%>%
   mutate(excess = maxtp - threshold_9) %>%
   filter(excess>0)
 
@@ -155,7 +163,7 @@ loglik_sum = c()
 
 #investigate which range seems good before running the whole thing !!!!
 
-for(potential_shape in seq(-0.2, -0.15, length.out = 100)){  
+for(potential_shape in seq(-0.26, -0.21, length.out = 100)){ 
   print(potential_shape)
   
   loglik = c()
@@ -171,36 +179,55 @@ for(potential_shape in seq(-0.2, -0.15, length.out = 100)){
   loglik_sum = c(loglik_sum, sum(loglik))
 }
 
-optimal_shape = seq(-0.2, -0.15, length.out = 100)[which.min(loglik_sum)]
-#optimal_shape = -0.1737374
+print(sort(loglik_sum))
+
+optimal_shape = seq(-0.26, -0.21, length.out = 100)[which.min(loglik_sum)]
 
 loglik_fixed_xi = c()
 loglik_free_xi = c()
+std_errors_scale = c()
+std_errors_shape = c()
 
-obs_grid = obs_dat %>% dplyr::select(longitude, latitude, stn) %>% unique
+legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
+
+obs_grid = obs_dat %>% left_join(legend_data, by = "stn") %>% dplyr::select(longitude, latitude, stn) %>% unique
+
 for(i in obs_grid$stn){
   print(i)
   this_extm_irel = obs_dat %>% filter(stn == i) %>% pull(excess)
   
   # --- fixed shape
-  model_fit = estimate_scale_fixed_shape(this_extm_irel, -0.1737374) #will need to be changed
+  model_fit = estimate_scale_fixed_shape(this_extm_irel, optimal_shape) 
   loglik_fixed_xi = c(loglik_fixed_xi, model_fit$value)
   
-  # --- free shape
-  loglik_free_xi = c(loglik_free_xi, (evd::fpot(this_extm_irel, threshold = 0) %>% logLik %>% as.numeric()))
+  if (i %in% c("GIH", "INNEBI", "EMM", "WSLLAE", "INNESF", "PMA", "PERCOR")){
+    # --- free shape
+    loglik_free_xi = c(loglik_free_xi, (evd::fpot(this_extm_irel, threshold = 0, std.err = FALSE) %>% logLik %>% as.numeric()))
+    std_errors_scale = c(std_errors_scale, NA)
+    std_errors_shape = c(std_errors_shape, NA)
+  }
+  else{
+    # --- free shape
+    model = evd::fpot(this_extm_irel, threshold = 0)
+    loglik_free_xi = c(loglik_free_xi, model %>% logLik %>% as.numeric())
+    std_errors_scale = c(std_errors_scale, model$std.err[[1]])
+    std_errors_shape = c(std_errors_shape, model$std.err[[2]])
+  }
 }
 
 obs_grid$LL_null = loglik_fixed_xi
 obs_grid$LL_alt = -loglik_free_xi
 obs_grid$LL_ratio = -2*log(obs_grid$LL_alt/obs_grid$LL_null)
+obs_grid$LL_alt_std_error_scale = std_errors_scale
+obs_grid$LL_alt_std_error_shape = std_errors_shape
 
 
 plt_obs = obs_grid %>%
   ggplot()+
-  geom_point(aes(longitude, latitude, col = LL_ratio))+
+  geom_point(aes(longitude, latitude, col = LL_ratio), alpha = 0.5, size = 2.5)+ #size = 2.5
   coord_map()+
   theme_minimal()+
-  geom_sf(data = ireland_sf, alpha = 0, col = 'black')+
+  geom_sf(data = switzerland, alpha = 0, col = 'black')+
   ggplot2::scale_color_gradientn(colors = my_pal)+
   scale_x_continuous(breaks= -c(10, 8, 6))+
   theme_minimal(12)+

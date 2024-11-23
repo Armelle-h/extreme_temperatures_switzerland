@@ -113,7 +113,7 @@ obs_data$obs_threshold = quantile_model_fit$location$fitted
 
 obs_data$obs_threshold_no_reg = obs_data$clim_thresh_value_9/2 + obs_data$obs_quant_9/2
 
-stn_name = "TICHI"
+stn_name = "ZBO"
 
 # Plotting histogram of col3 in the filtered data
 hist((obs_data %>%filter(stn == stn_name))$maxtp,
