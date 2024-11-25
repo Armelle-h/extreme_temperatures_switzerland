@@ -28,9 +28,9 @@ obs_data = obs_data %>%
 
 #adding threshold 9 
 
-threshold_9_df = vroom::vroom("Data/processed/full_obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")%>%
-  dplyr::select(obs_quant_9, stn)%>%
-  rename(threshold_9 = obs_quant_9)%>%
+threshold_9_df = vroom::vroom("Data/processed/obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")%>%
+  dplyr::select(obs_threshold, stn)%>%
+  rename(threshold_9 = obs_threshold)%>%
   unique()
 
 #lambda associated with observed data, vary the quantile model
@@ -47,6 +47,14 @@ obs_data = obs_data %>%
   #left_join(lambda_df, by=c("stn", "year")) %>%
   left_join(glob_anomaly_reshaped, by = "year") %>%
   left_join(threshold_9_df, by="stn")
+
+
+obs_data = obs_data %>% 
+  group_by(stn)%>% 
+  filter(maxtp < quantile(maxtp, 0.999))%>% 
+  filter(maxtp > quantile(maxtp, 0.001))%>% 
+  ungroup
+
 
 #loading the covariates
 covars = obs_data %>%
@@ -92,9 +100,32 @@ if(fit_true_models){
 }
 
 
-list_ip = list(c(0.2, 0.5, 0.2, -0.1), c(1, 0.1, 0.5, -0.1), c(1, -1, 0.2, -0.1)  )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+list_ip = list(c(0.2, 0.5, 0.2, -0.1), c(1, 0.1, 0.5, -0.1), c(0.5, 0.5, 0,5, -0.1)  )
 
 for (ip in list_ip){
+  
+  ip = c(0.5, 0.15, 0.4, -0.25)
   
   par = fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_9,
                   extreme_dat_true$glob_anom, ip)

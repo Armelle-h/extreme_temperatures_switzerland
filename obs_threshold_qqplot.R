@@ -24,18 +24,18 @@ glob_anomaly_reshaped = glob_anomaly %>%
   select(c("year", "JJA"))%>%
   rename(glob_anom = JJA)
 
-threshold_9_df = vroom::vroom("Data/processed/full_obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")%>%
-  dplyr::select(obs_quant_9, stn)%>%
-  rename(threshold_9 = obs_quant_9)%>%
+threshold_9_df = vroom::vroom("Data/processed/obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")%>%
+  dplyr::select(obs_threshold, stn)%>%
+  rename(threshold_9 = obs_threshold)%>%
   unique()
 
-#lambda_df = vroom::vroom(paste0("Data/processed/full_obs_threshold_glob_anomaly_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv") )
+lambda_df = vroom::vroom(paste0("Data/processed/obs_threshold_glob_anomaly_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv") )
 
 
 #"stn"   "date"    "maxtp"  "id"  "scale_9"   "year" "thresh_exceedance_9" "threshold_9" "glob_anom"
 obs_data = obs_data %>% 
   mutate(year = year(date)) %>%
-  #left_join(lambda_df, by=c("stn", "year")) %>%
+  left_join(lambda_df, by=c("stn", "year")) %>%
   left_join(glob_anomaly_reshaped, by = "year") %>%
   left_join(threshold_9_df, by="stn")
 
@@ -45,8 +45,10 @@ obs_smoothed_quantiles = readRDS(paste0("output/glob_anomaly_quant_models_num_qu
 
 marg_mod = 'mod_1'
 
-this_fit_mod = read_csv("output/gpd_model_fits/full_obs_threshold_model_1_true.csv") %>%
+this_fit_mod = read_csv("output/gpd_model_fits/obs_threshold_model_1_true.csv") %>%
   unlist() %>% as.numeric
+
+this_fit_mod = c(0.4781809,  0.1595252,  0.4394563, -0.2535455)
 
 pred <- my_predict_1(this_fit_mod, obs_data$scale_9, obs_data$glob_anom) #change according to model !!!!!!!!!!
 
@@ -54,38 +56,41 @@ pred <- my_predict_1(this_fit_mod, obs_data$scale_9, obs_data$glob_anom) #change
 obs_data$scale = pred$scale
 obs_data$shape = pred$shape
 
-obs_data %>% group_by(stn) %>% summarise(count = n()) %>% arrange(count) #doesn't this line not do anything ? 
-standardised_qq = obs_data %>% 
-  dplyr::select(stn, year, maxtp, scale, shape, threshold_9) %>%
-  filter(maxtp>=threshold_9) %>%
-  mutate(unif = evd::pgpd(q = (maxtp - threshold_9), loc = 0, scale = scale, shape = shape[1])) %>%
-  group_by(stn) %>%
-  group_map(~{
-    
-    .x$exp = sort(-log(1 - .x$unif))
-    .x$rank = seq(nrow(.x))/(nrow(.x)+1)
-    .x$rank = sort(-log(1-.x$rank))
-    
-    # ---- tolerence band
-    num_reps = nrow(.x)
-    exp_ci = matrix(nrow = 1000, ncol = num_reps)
-    for(i in seq(1000)){
-      exp_ci[i,] = sort(-log(1-runif(num_reps)))
-    }
-    
-    .x$lower_ci = exp_ci %>% apply(MARGIN = 2, FUN = quantile, 0.02)
-    .x$upper_ci = exp_ci %>% apply(MARGIN = 2, FUN = quantile, 0.98)
-    .x
-  }, .keep = T) %>%
-  plyr::rbind.fill() %>%
-  as_tibble() 
+# %>% group_by(stn) %>% summarise(count = n()) %>% arrange(count) #doesn't this line not do anything ? 
+
+
+#standardised qq is defined twice.
+
+#standardised_qq = obs_data %>% 
+#  dplyr::select(stn, year, maxtp, scale, shape, threshold_9) %>%
+#  filter(maxtp>=threshold_9) %>%
+#  mutate(unif = evd::pgpd(q = (maxtp - threshold_9), loc = 0, scale = scale, shape = shape[1])) %>%
+#  group_by(stn) %>%
+#  group_map(~{
+#    
+#    .x$exp = sort(-log(1 - .x$unif))
+#    .x$rank = seq(nrow(.x))/(nrow(.x)+1)
+#    .x$rank = sort(-log(1-.x$rank))
+##    
+#    # ---- tolerence band
+#    num_reps = nrow(.x)
+#    exp_ci = matrix(nrow = 1000, ncol = num_reps)
+#    for(i in seq(1000)){
+#      exp_ci[i,] = sort(-log(1-runif(num_reps)))
+#    }
+#    
+#    .x$lower_ci = exp_ci %>% apply(MARGIN = 2, FUN = quantile, 0.02)
+#    .x$upper_ci = exp_ci %>% apply(MARGIN = 2, FUN = quantile, 0.98)
+#    .x
+#  }, .keep = T) %>%
+#  plyr::rbind.fill() %>%
+#  as_tibble() 
 #done for each value above threshold_9. We have dupplicates of stn, year because the transformation is done for every point. 
 
 
 standardised_qq = obs_data %>%
   filter(maxtp>=threshold_9) %>%
   mutate(unif = evd::pgpd(q = (maxtp - threshold_9), loc = 0, scale = scale, shape = shape[1])) %>%
-  mutate(exp = -log(1 - unif)) %>%
   mutate(exp = -log(1 - unif)) %>%
   mutate(rank = seq(nrow(.))/(nrow(.)+1)) %>%
   mutate(rank = (-log(1-rank)))
@@ -199,3 +204,22 @@ plt = gridExtra::grid.arrange(bulk_and_tail %>%
                               bottom = textGrob("Ideal quantiles", rot = 0, vjust = 0, 
                                                 gp = gpar(col = "black", fontsize = 12)))
 #ggsave(plt, filename = 'output/figs/qqplot_pooledsites.png', height = 3, width = 8)
+
+
+#NOT TO BE USED IN PRACTICE
+#robust_standardised_qq = standardised_qq %>% 
+#  mutate(excess = maxtp-threshold_9)%>%
+#  filter(excess<8) #to start with
+
+
+plt = gridExtra::grid.arrange(standardised_qq %>%
+                                ggplot()+
+                                geom_ribbon(data = tibble(qnt = standardised_qq$rank, (lower_ci), (upper_ci)), aes(x = qnt, ymin = sort(lower_ci), ymax = sort(upper_ci)), alpha = 0.3)+
+                                geom_point(aes(rank, sort(exp)), size = 0.75)+
+                                geom_abline(col = 'red',linetype = 'longdash')+
+                                theme_minimal(12)+
+                                theme(axis.title.y = element_blank(),
+                                      axis.title.x = element_blank(),
+                                      panel.grid.minor = element_blank()) + 
+                                scale_x_continuous(breaks = c(0,2,4,6,8,10))+ 
+                                scale_y_continuous(breaks = c(0,2,4,6,8,10,12)), nrow = 1)

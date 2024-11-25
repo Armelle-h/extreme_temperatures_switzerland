@@ -52,7 +52,9 @@ pred <- my_predict_1(this_fit_mod, obs_data$scale_9, obs_data$glob_anom) #change
 obs_data$scale = pred$scale
 obs_data$shape = pred$shape
 
-obs_data %>% group_by(stn) %>% summarise(count = n()) %>% arrange(count)
+obs_data %>% group_by(stn) %>% summarise(count = n()) %>% arrange(count) #this line is useless. We have two different codes for 
+#standardised_qq
+
 standardised_qq = obs_data %>% 
   dplyr::select(stn, year, maxtp, scale, shape, threshold_9) %>%
   filter(maxtp>=threshold_9) %>%
