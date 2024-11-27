@@ -57,7 +57,7 @@ count_meas = obs_data %>%
   count(stn)%>%
   rename(tot_meas = n)
 
-T = obs_clim_data %>% filter(tp_diff>=5) %>% select(stn, tp_diff) %>%count(stn)
+T = obs_clim_data %>% filter(tp_diff>=8) %>% select(stn, tp_diff) %>%count(stn)
 T = T  %>% left_join(legend_data%>%select(stn, longitude, latitude, Nom, altitude)  , by = "stn" )
 
 T_ = T %>% inner_join(count_meas, by = "stn")%>%
@@ -75,4 +75,36 @@ ggplot(data = switzerland) +
   labs(x = "Longitude", y = "Latitude")
 
 
+#computing the quantile estimation error 
+clim_thresh_values_quant = clim_thresh_values %>%
+  group_by(id) %>%
+  mutate(clim_quant = quantile(maxtp_clim, 0.9))%>%
+  select(id, clim_quant)%>%
+  unique()
 
+
+obs_data_quant = obs_data %>%
+  group_by(stn) %>%
+  mutate(obs_quant = quantile(maxtp, 0.9))%>%
+  select(stn, id, obs_quant)%>%
+  unique()
+
+quant = obs_data_quant %>%
+  left_join(clim_thresh_values_quant, by = "id")%>%
+  mutate(quant_diff = abs(obs_quant-clim_quant))
+
+quant = quant %>% left_join(legend_data%>%select(stn, longitude, latitude, Nom, altitude)  , by = "stn" )
+
+switzerland <- ne_countries(country = "Switzerland", scale = "medium", returnclass = "sf")
+
+quant_filtered = quant %>% filter(quant_diff>=3)
+
+points_sf <- st_as_sf(quant_filtered, coords = c("longitude", "latitude"), crs = 4326)
+
+ggplot(data = switzerland) +
+  geom_sf(fill = "lightblue", color = "black") +  # Plot Switzerland
+  geom_sf(data = points_sf, aes(size = quant_diff, color = quant_diff), alpha=0.7) + 
+  ggtitle("0.9 quantile estimation error") +
+  theme_minimal() +
+  labs(x = "Longitude", y = "Latitude")+
+  scale_color_gradient(low = "blue", high = "red")
