@@ -8,24 +8,6 @@
 
 #takes 30 sec to run
 
-stn_1 ="TGFRA"
-stn_2 = "FRF"
-
-print(min((obs_data %>% filter(stn ==stn_1))$year))
-print(max((obs_data %>% filter(stn ==stn_1))$year))
-print(min((obs_data %>% filter(stn ==stn_2))$year))
-print(max((obs_data %>% filter(stn ==stn_2))$year))
-
-
-print(max((obs_data %>% filter(stn ==stn_1))$maxtp))
-print(max((obs_data %>% filter(stn ==stn_2))$maxtp))
-print(mean((obs_data %>% filter(stn ==stn_1))$maxtp))
-print(mean((obs_data %>% filter(stn ==stn_2))$maxtp))
-
-
-
-
-
 gc()
 rm(list = ls())
 library(tidyverse)

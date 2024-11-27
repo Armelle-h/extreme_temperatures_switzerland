@@ -50,3 +50,66 @@ write.csv(legend_filtered, "Data/Observed_data/plain_1971_2022_JJA_obs_legend.cs
 
 write.csv(obs_data_plain%>%select(stn, date, maxtp, id), "Data/Observed_data/plain_1971_2022_JJA_obs_data_loc_id.csv", row.names=FALSE)
 
+
+library(data.table)
+library(rnaturalearth)
+library(sf)
+
+I = read.csv("Data/id_lon_lat_correspondance.csv")
+L = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")
+
+sf1 <- st_as_sf(L, coords = c("longitude", "latitude"), crs = 4326)
+sf2 <- st_as_sf(I, coords = c("longitude", "latitude"), crs = 4326)
+
+# Transform to a projected CRS for distance calculation
+sf1_proj <- st_transform(sf1, 3857)
+sf2_proj <- st_transform(sf2, 3857)
+
+# Find points within 5 km
+within_5km <- st_is_within_distance(sf2_proj, sf1_proj, dist = 5000)
+
+# Filter df2 points within 5 km of df1 points
+I_within_5_km <- I[apply(within_5km, 1, any), ]
+
+I_filtered = I %>%
+  rowwise() %>%
+  filter(any(I_within_5_km$longitude > longitude & I_within_5_km$latitude < latitude) | longitude<6.5  ) %>%
+  ungroup()
+
+
+
+files = list.files(path = "Data/Climate_data/By_id", full.names = TRUE)
+clim_data_extreme_9_list = list()
+
+for (i in seq_along(files)){
+  
+  clim_data = fread(files[[i]])%>%
+    filter(date_id == 130 & id %in% I_filtered$id)
+  
+  
+  clim_data_extreme_9_list[[i]] = clim_data
+  
+  #to free memory
+  rm(clim_data)
+  gc()
+}
+
+clim_data_extreme_9 =  do.call(rbind, clim_data_extreme_9_list)
+
+clim_data_extreme_9 = clim_data_extreme_9%>%
+  left_join(I_second_try, by="id")
+
+switzerland <- ne_countries(country = "Switzerland", scale = "medium", returnclass = "sf")
+
+switzerland <- st_transform(switzerland, crs = 4326)
+
+
+clim_data_extreme_9 %>%  #the weird position of the points comes from the fact that we're selecting only every 10 points to be plot.
+  ggplot()+
+  geom_point(aes(longitude, latitude))+
+  coord_map()+
+  theme_minimal()+
+  geom_sf(data = switzerland, alpha = 0, col = 'black')+
+  theme_minimal()
+
+write.csv(I_second_try, "Data/plain_id_lon_lat_correspondance.csv", row.names = FALSE)
