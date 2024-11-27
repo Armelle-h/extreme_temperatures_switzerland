@@ -7,7 +7,7 @@ setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
 source('gpd_models.R')
 
-num_quantiles = 40
+num_quantiles = 30
 
 obs_data = vroom::vroom("Data/Observed_data/obs_data_gpd_model.csv")
 
@@ -52,40 +52,9 @@ pred <- my_predict_1(this_fit_mod, obs_data$scale_9, obs_data$glob_anom) #change
 obs_data$scale = pred$scale
 obs_data$shape = pred$shape
 
-obs_data %>% group_by(stn) %>% summarise(count = n()) %>% arrange(count) #this line is useless. We have two different codes for 
-#standardised_qq
-
-standardised_qq = obs_data %>% 
-  dplyr::select(stn, year, maxtp, scale, shape, threshold_9) %>%
-  filter(maxtp>=threshold_9) %>%
-  mutate(unif = evd::pgpd(q = (maxtp - threshold_9), loc = 0, scale = scale, shape = shape[1])) %>%
-  group_by(stn) %>%
-  group_map(~{
-    
-    .x$exp = sort(-log(1 - .x$unif))
-    .x$rank = seq(nrow(.x))/(nrow(.x)+1)
-    .x$rank = sort(-log(1-.x$rank))
-    
-    # ---- tolerence band
-    num_reps = nrow(.x)
-    exp_ci = matrix(nrow = 1000, ncol = num_reps)
-    for(i in seq(1000)){
-      exp_ci[i,] = sort(-log(1-runif(num_reps)))
-    }
-    
-    .x$lower_ci = exp_ci %>% apply(MARGIN = 2, FUN = quantile, 0.02)
-    .x$upper_ci = exp_ci %>% apply(MARGIN = 2, FUN = quantile, 0.98)
-    .x
-  }, .keep = T) %>%
-  plyr::rbind.fill() %>%
-  as_tibble() 
-
-
-
 standardised_qq = obs_data %>%
   filter(maxtp>=threshold_9) %>%
   mutate(unif = evd::pgpd(q = (maxtp - threshold_9), loc = 0, scale = scale, shape = shape[1])) %>%
-  mutate(exp = -log(1 - unif)) %>%
   mutate(exp = -log(1 - unif)) %>%
   mutate(rank = seq(nrow(.))/(nrow(.)+1)) %>%
   mutate(rank = (-log(1-rank)))
