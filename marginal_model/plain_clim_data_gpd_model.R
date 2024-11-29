@@ -66,9 +66,7 @@ estimate_scale_fixed_shape = function(x,shape_c){
 }
 
 # fit scale parameter to each location with constant shape
-num_sites = clim_data_extreme_9$id %>% unique()
-
-potential_shape_values_climate = seq(-0.25, -0.20, length.out = 50)
+potential_shape_values_climate = seq(-0.40, -0.20, length.out = 5) #used to be seq(-0.25, -0.20, length.out = 50)
 
 sub_clim_data_extreme_9 = clim_data_extreme_9 %>%
   dplyr::select(id, excess)%>%
@@ -153,6 +151,8 @@ cat("The optimal shape is:", optimal_shape, "\n")  #with this technique the opti
 #since the other was computed on one id out of 5 and here we consider all ids. It would be useful to have a result it and of 
 #itself 
 
+optimal_shape = -0.25
+
 id_clim_data_extreme_9 = clim_data_extreme_9 %>%
   dplyr::select(id, excess)
 
@@ -225,14 +225,13 @@ loglik_optimal_shape = result_1$loglik + result_2$loglik + result_3$loglik + res
 # Combine results from all chunks into one data frame
 scales_9 <- c(result_1$scales_, result_2$scales_, result_3$scales_, result_4$scales_, result_5$scales_)
 
-
 #end of new version
 
-saveRDS(loglik_optimal_shape, "Data/clim_data_gpd_model/plain_loglik_optimal_shape.rds") #loglikelihood computed for all indexes 
+saveRDS(loglik_optimal_shape, "Data/clim_data_gpd_model/temp_025_plain_loglik_optimal_shape.rds") #loglikelihood computed for all indexes 
 
-saveRDS(scales_9, "Data/clim_data_gpd_model/plain_scales_9.rds")
+saveRDS(scales_9, "Data/clim_data_gpd_model/temp_025_plain_scales_9.rds")
 
-scales_9 = readRDS("Data/clim_data_gpd_model/plain_scales_9.rds")
+scales_9 = readRDS("Data/clim_data_gpd_model/temp_025_plain_scales_9.rds")
 
 # --- save estimates on climate grid
 
@@ -241,7 +240,7 @@ clim_data_extreme_9 %>%
   dplyr::select(id) %>%
   unique() %>%
   mutate(scale_9 = scales_9) %>%
-  write_csv("Data/Climate_data/plain_clim_scale_grid_gpd_model.csv")
+  write_csv("Data/Climate_data/temp_025_plain_clim_scale_grid_gpd_model.csv")
 
 obs_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_data_loc_id.csv")
 

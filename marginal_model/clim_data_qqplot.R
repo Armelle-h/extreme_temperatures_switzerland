@@ -165,9 +165,9 @@ rm(clim_data_extreme_9_list)
 rm(sing_clim_data_extreme_9)
 
 #to have the scale parameter associated
-scales_9_df = read.csv("Data/Climate_data/plain_clim_scale_grid_gpd_model.csv")
+scales_9_df = read.csv("Data/Climate_data/temp_025_plain_clim_scale_grid_gpd_model.csv")
 
-shape_9 = readRDS("Data/clim_data_gpd_model/plain_optimal_shape.rds")
+shape_9 = -0.25
 
 clim_data_extreme_9 = clim_data_extreme_9 %>%
   left_join(scales_9_df, by="id")
