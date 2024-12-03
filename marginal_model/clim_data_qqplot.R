@@ -201,7 +201,6 @@ library(scales)
 clim_data_extreme_9_reduced$ideal = (clim_data_extreme_9_reduced$maxtp %>% rank(ties.method = "random"))/(nrow(clim_data_extreme_9_reduced)+1) 
 clim_data_extreme_9_reduced$exp_ideal = -log(1-clim_data_extreme_9_reduced$ideal)
 
-
 library(grid)
 
 plt = gridExtra::grid.arrange(standardised_qq %>%
@@ -215,7 +214,6 @@ plt = gridExtra::grid.arrange(standardised_qq %>%
                                       panel.grid.minor = element_blank()) + 
                                 scale_x_continuous(breaks = c(0,2,4,6,8,10))+ 
                                 scale_y_continuous(breaks = c(0,2,4,6,8,10,12)), nrow = 1)
-
 
 #plotting Switzerland with the color depending on the value of exp 
 

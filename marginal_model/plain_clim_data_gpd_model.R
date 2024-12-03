@@ -242,6 +242,8 @@ clim_data_extreme_9 %>%
   mutate(scale_9 = scales_9) %>%
   write_csv("Data/Climate_data/temp_025_plain_clim_scale_grid_gpd_model.csv")
 
+C = read.csv("Data/Climate_data/temp_025_plain_clim_scale_grid_gpd_model.csv")
+
 obs_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_data_loc_id.csv")
 
 obs_sites = obs_data %>%
@@ -249,7 +251,7 @@ obs_sites = obs_data %>%
   unique()
 
 obs_sites = obs_sites %>%
-  left_join(clim_data_extreme_9 %>%
+  left_join(C %>%
               dplyr::select(id) %>%
               unique() %>%
               mutate(scale_9 = scales_9) %>%
@@ -257,4 +259,4 @@ obs_sites = obs_sites %>%
 
 obs_data %>%
   left_join(obs_sites) %>% 
-  write_csv("Data/Observed_data/plain_obs_data_gpd_model.csv")
+  write_csv("Data/Observed_data/temp_025_plain_obs_data_gpd_model.csv")

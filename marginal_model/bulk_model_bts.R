@@ -82,7 +82,7 @@ fit_quant_regression = function(bts_range, marg_mod, num_quantiles, zeta_list, o
   }
 }
 
-num_quantiles = 40 
+num_quantiles = 30 
 
 obs_data = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
@@ -103,17 +103,15 @@ rm('glob_anomaly', 'glob_anomaly_reshaped')
 
 #takes   time 
 
-for(i in seq(15, 20, 2)){ #should take ~20 minutes
-  seq_ = seq(i, i+1)
-  job::job({fit_quant_regression(seq_,  'mod_0', 40, zeta_list, obs_data)}, import = c("fit_quant_regression", "obs_data", "zeta_list", "seq_")) 
+for(i in seq(1,16, 4)){ 
+  seq_ = seq(i, i+3)
+  job::job({fit_quant_regression(seq_,  'mod_1', 30, zeta_list, obs_data)}, import = c("fit_quant_regression", "obs_data", "zeta_list", "seq_")) 
 }
 
-job::job({fit_quant_regression(seq(1,1),  'mod_0', 40)}, import = c("fit_quant_regression", "obs_data")) 
-job::job({fit_quant_regression(seq(1,20),  'mod_1', 40)}) 
-job::job({fit_quant_regression(seq(1,20),  'mod_2', 40)}) 
-job::job({fit_quant_regression(seq(1,20),  'mod_3', 40)}) 
-
-
+#job::job({fit_quant_regression(seq(1,1),  'mod_0', 40)}, import = c("fit_quant_regression", "obs_data")) 
+#job::job({fit_quant_regression(seq(1,20),  'mod_1', 40)}) 
+#job::job({fit_quant_regression(seq(1,20),  'mod_2', 40)}) 
+#job::job({fit_quant_regression(seq(1,20),  'mod_3', 40)}) 
 
 # job::job({fit_quant_regression(seq(1,20),  'mod_0', 30)}) 
 # job::job({fit_quant_regression(seq(21,40), 'mod_0', 30)})

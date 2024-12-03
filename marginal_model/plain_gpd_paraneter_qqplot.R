@@ -5,7 +5,7 @@ library(tidyverse)
 library(gridExtra)
 
 #loading the custom functions
-source('gpd_models.R') #for now, might need to do a bit of relocating
+source('marginal_model/gpd_models.R') #for now, might need to do a bit of relocating
 
 num_quantiles = 30
 
@@ -13,7 +13,7 @@ fit_uncorrected_models = T
 fit_true_models = T
 
 #observed data that has exceeded the threshold
-obs_data = vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model.csv")
+obs_data = vroom::vroom("Data/Observed_data/temp_025_plain_obs_data_gpd_model.csv")   #vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model.csv")
 
 legend_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")
 
@@ -61,24 +61,12 @@ if(fit_true_models){
   
   #ONLY DONE FOR MODEL 1
   
-  fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_9)  %>%
-    matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/plain_model_0_true.csv")
+  #need to find good initial parameters
   
   fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_9,
-            extreme_dat_true$glob_anom, c(0.6, 0.02, 0.4, -0.1))  %>%
+            extreme_dat_true$glob_anom, c(0.6, 0.03, 0.4, -0.2))  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/plain_model_1_true.csv")
-  
-  fit_mod_2(extreme_dat_true$excess, extreme_dat_true$scale_9,
-            extreme_dat_true$glob_anom, extreme_dat_true$altitude)  %>%
-    matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/plain_model_2_true.csv")
-  
-  fit_mod_3(extreme_dat_true$excess, extreme_dat_true$scale_9,
-            extreme_dat_true$altitude)  %>%
-    matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/plain_model_3_true.csv")
+    write_csv("output/gpd_model_fits/temp_025_plain_model_1_true.csv")
   
 }
 
@@ -89,7 +77,7 @@ obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models_
 
 marg_mod = 'mod_1'
 
-this_fit_mod = read_csv("output/gpd_model_fits/plain_model_1_true.csv") %>%
+this_fit_mod = read_csv("output/gpd_model_fits/temp_025_plain_model_1_true.csv") %>%
   unlist() %>% as.numeric
 
 pred <- my_predict_1(this_fit_mod, obs_data$scale_9, obs_data$glob_anom) #change according to model !!!!!!!!!!

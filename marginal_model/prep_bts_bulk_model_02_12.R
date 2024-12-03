@@ -1,3 +1,5 @@
+#in the second part, 1 file takes 10 minutes
+
 gc() 
 rm(list = ls())
 library(tidyverse)
@@ -84,8 +86,6 @@ if(standardise_data){
   obs_data = obs_data %>%
     left_join(quantile_models)
   
-  rm('quantile_models')
-  
   obs_data = obs_data %>%
     group_by(stn) %>%
     group_map(~{
@@ -108,28 +108,21 @@ if(standardise_data){
       yr = .x$year
       my_lambda = .x$thresh_exceedance_9
       
-      res_0 = rep(NA, length(data)) #data = .x$maxtp
+      res_0 = rep(NA, length(data))
       res_1 = rep(NA, length(data))
       res_2 = rep(NA, length(data))
       res_3 = rep(NA, length(data))
       
       for(i in seq(length(data))){
-        if(data[i] > threshold[i]){ # transform tail      #if we're in the tail of the distribution
-          #if my_lambda[i] is NA then the whole expression will be NA
+        if(data[i] > threshold[i]){ # transform tail
+          
           res_0[i] = 1 - (my_lambda[i]) *(1+shpe_0[i]* ((data[i] - threshold[i])/scle_0[i]))^(-1/(shpe_0[i]))
           res_1[i] = 1 - (my_lambda[i]) *(1+shpe_1[i]* ((data[i] - threshold[i])/scle_1[i]))^(-1/(shpe_1[i]))
           res_2[i] = 1 - (my_lambda[i]) *(1+shpe_2[i]* ((data[i] - threshold[i])/scle_2[i]))^(-1/(shpe_2[i]))
           res_3[i] = 1 - (my_lambda[i]) *(1+shpe_3[i]* ((data[i] - threshold[i])/scle_3[i]))^(-1/(shpe_3[i]))
+          
         }else{ 
-          #if we're in the main body of the distribution, can use temp_to_tau functions and we don't have different candidate models 
-          #for the body
-          candidate_value = .x$temp_to_tau[i][[1]](data[i])
-          
-          if (candidate_value<0 | candidate_value>1) {
-            candidate_value = NA
-          }
-          
-          res_0[i] = candidate_value
+          res_0[i] = .x$temp_to_tau[i][[1]](data[i])
           res_1[i] = res_0[i]
           res_2[i] = res_0[i]
           res_3[i] = res_0[i]
@@ -142,13 +135,11 @@ if(standardise_data){
       .x
     }, .keep = T) %>%
     plyr::rbind.fill() %>%
-    as_tibble() 
+    as_tibble()
   
   #before 305 GB heavy, after 99.1 MB heavy 
   obs_data = obs_data  %>%
     select(-c(temp_to_tau))
-  
-  #2440 rows that have NA out of 603 866 rows
   
   obs_data$unif_0[obs_data$unif_0 < 0] = 0 
   obs_data$unif_1[obs_data$unif_1 < 0] = 0
@@ -170,7 +161,7 @@ if(standardise_data){
 invalid_values <- obs_data %>%
   filter(if_any(c(unif_0, unif_1, unif_2, unif_3), ~ . < 0 | . > 1))
 
-print(nrow(invalid_values))
+print(nrow(invalid_values)) #0 rows of invalid values :)
 
 
 #END OF FIXED PART
@@ -219,6 +210,7 @@ covars = obs_data %>%
 
 #Defined bts_rng and change the value of i, or can do a for loop  
 
+
 #batch_size = 20                             -- we have 200 bts
 #for(i in seq(1, 200, by = batch_size)){
 #  job::job({generate_bts(seq(i,(i+batch_size-1)))})
@@ -226,15 +218,13 @@ covars = obs_data %>%
 
 # i takes values in 1  21  41  61  81 101 121 141 161 181    (need to do 10 times the code below)
 
-i = 61
+
+i = 1 #to vary
 
 batch_size = 20
 bts_rng = seq(i,(i+batch_size-1))
 
 for(b in bts_rng){
-  
-  if (i<=68){next}
-  
   print(b)
   bts_data <- rlang::duplicate(obs_data, shallow = FALSE) # make a deep copy
   sites_by_date$bts.dat = bootstrap_dates[[b]]
@@ -291,8 +281,6 @@ for(b in bts_rng){
   
   print("Starting expanded_data computations")
   
-  #parallelizing otherwise way too long
-  
   process_station_data <- function(station_data, quantile_models) {
     
     station_data = station_data %>%
@@ -345,6 +333,7 @@ for(b in bts_rng){
           }else{
             .x$maxtp_2[i] = apply_tau_to_temp(quantile_models, .x$year[i], .x$stn[i], .x$unif_2[i])
           }
+          
           # --- model 3
           if(.x$unif_3[i] > (1-my_lambda[i])){
             .x$maxtp_3[i] =  evd::qgpd( p =(1 + (.x$unif_3[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_3[i],shape=shpe_3[i])
@@ -360,84 +349,141 @@ for(b in bts_rng){
     return(station_data)
   }
   
-  unique_values <- unique(expanded_data$stn)
+}
+
+
+
+
+generate_bts = function(bts_rng){
   
-  chunk_size <- ceiling(length(unique_values) / 4)
-  group_chunks <- split(unique_values, ceiling(seq_along(unique_values) / chunk_size))
+  sites_by_date = readRDS("data/processed/bootstrap_data/sites_by_date")
+  bootstrap_dates = readRDS("data/processed/bootstrap_data/bootstrapped_dates")
   
-  
-  df_1 = expanded_data %>% filter(stn %in% group_chunks[[1]])
-  df_2 = expanded_data %>% filter(stn %in% group_chunks[[2]])
-  df_3 = expanded_data %>% filter(stn %in% group_chunks[[3]])
-  df_4 = expanded_data %>% filter(stn %in% group_chunks[[4]])
-  
-  qm_1 = quantile_models %>% filter(stn %in% group_chunks[[1]])
-  qm_2 = quantile_models %>% filter(stn %in% group_chunks[[2]])
-  qm_3 = quantile_models %>% filter(stn %in% group_chunks[[3]])
-  qm_4 = quantile_models %>% filter(stn %in% group_chunks[[4]])
-  
-  job::job({
+  for(b in bts_rng){
+    print(b)
+    bts_data <- rlang::duplicate(obs_data, shallow = FALSE) # make a deep copy
+    sites_by_date$bts.dat = bootstrap_dates[[b]]
     
-    result_1 = process_station_data(df_1, qm_1)
+    dates_and_their_data = bts_data %>%
+      group_by(date) %>%
+      group_map(~{
+        tibble(date = .x$date[1],
+               stn = list(.x$stn),
+               unif_0 = list(.x$unif_0),
+               unif_1 = list(.x$unif_1),
+               unif_2 = list(.x$unif_2),
+               unif_3 = list(.x$unif_3))
+      }, .keep = T) %>%
+      plyr::rbind.fill() %>%
+      as_tibble()
     
-    result_1 %>%
+    rm('bts_data')
+    
+    dates_and_their_data_copy = duplicate(dates_and_their_data, shallow = FALSE)
+    
+    for(i in seq(nrow(sites_by_date))){
+      data_to_replace = dates_and_their_data[dates_and_their_data$date == sites_by_date[i,]$date,]
+      sampled_data = dates_and_their_data[dates_and_their_data$date == sites_by_date[i,]$bts.dat,]
+      sites_to_replace = dates_and_their_data[dates_and_their_data$date == sites_by_date[i,]$date,]$stn[[1]]
+      sites_in_bts_date = sampled_data$stn[[1]]
+      ind_of_sites_to_rep = which(sites_in_bts_date %in% sites_to_replace)
+      dates_and_their_data_copy[dates_and_their_data$date == sites_by_date[i,]$date,]$unif_0 = list(sampled_data$unif_0[[1]][ind_of_sites_to_rep])
+      dates_and_their_data_copy[dates_and_their_data$date == sites_by_date[i,]$date,]$unif_1 = list(sampled_data$unif_1[[1]][ind_of_sites_to_rep])
+      dates_and_their_data_copy[dates_and_their_data$date == sites_by_date[i,]$date,]$unif_2 = list(sampled_data$unif_2[[1]][ind_of_sites_to_rep])
+    }
+    
+    rm('dates_and_their_data')
+    
+    expanded_data = dates_and_their_data_copy %>%
+      group_by(date) %>%
+      group_map(~{
+        tibble(date = .x$date,
+               stn = .x$stn[[1]],
+               unif_0 = .x$unif_0[[1]],
+               unif_1 = .x$unif_1[[1]],
+               unif_2 = .x$unif_2[[1]],
+               unif_3 = .x$unif_3[[1]])
+      }, .keep=T) %>%
+      plyr::rbind.fill() %>%
+      as_tibble()
+    
+    rm('dates_and_their_data_copy')
+    
+    expanded_data = expanded_data %>%
+      mutate(year = lubridate::year(date)) %>%
+      left_join(covars)
+    
+    print("Starting expanded_data computations")
+    
+    expanded_data = expanded_data %>%
+      mutate(year = lubridate::year(date)) %>%
+      left_join(covars)
+    
+    # ---- back transform
+    expanded_data%>%
+      group_by(stn) %>%
+      group_map(~{
+        
+        scle_0 = .x$scale_0
+        shpe_0 = .x$shape_0
+        
+        scle_1 = .x$scale_1
+        shpe_1 = .x$shape_1
+        
+        scle_2 = .x$scale_2
+        shpe_2 = .x$shape_2
+        
+        scle_3 = .x$scale_3
+        shpe_3 = .x$shape_3
+        
+        threshold = .x$threshold_9
+        my_lambda = .x$thresh_exceedance_9
+        
+        .x$maxtp_0 = NA
+        .x$maxtp_1 = NA
+        .x$maxtp_2 = NA
+        .x$maxtp_3 = NA
+        
+        for(i in seq(nrow(.x))){
+          # --- model 0
+          if(.x$unif_0[i] > (1-my_lambda[i])){
+            .x$maxtp_0[i] =  evd::qgpd(p =(1 + (.x$unif_0[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_0[i],shape=shpe_0[i])
+          }else{
+            .x$maxtp_0[i] = apply_tau_to_temp(quantile_models, .x$year[i], .x$stn[i], .x$unif_0[i])
+          }
+          
+          # --- model 1
+          if(.x$unif_1[i] > (1-my_lambda[i])){
+            .x$maxtp_1[i] =  evd::qgpd( p =(1 + (.x$unif_1[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_1[i],shape=shpe_1[i])
+          }else{
+            .x$maxtp_1[i] = apply_tau_to_temp(quantile_models, .x$year[i], .x$stn[i], .x$unif_1[i])
+          }
+          
+          # --- model 2
+          if(.x$unif_2[i] > (1-my_lambda[i])){
+            .x$maxtp_2[i] =  evd::qgpd( p =(1 + (.x$unif_2[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_2[i],shape=shpe_2[i])
+          }else{
+            .x$maxtp_2[i] = apply_tau_to_temp(quantile_models, .x$year[i], .x$stn[i], .x$unif_2[i])
+          }
+          # --- model 3
+          if(.x$unif_3[i] > (1-my_lambda[i])){
+            .x$maxtp_3[i] =  evd::qgpd( p =(1 + (.x$unif_3[i]-1)/(my_lambda[i])), loc=threshold[i],scale=scle_3[i],shape=shpe_3[i])
+          }else{
+            .x$maxtp_3[i] = apply_tau_to_temp(quantile_models, .x$year[i], .x$stn[i], .x$unif_3[i])
+          }
+        }
+        .x
+      }, .keep = T) %>%
       plyr::rbind.fill() %>%
       as_tibble() %>%
-      dplyr::select(stn, date, scale_9, threshold_9, maxtp_0, maxtp_1, maxtp_2, maxtp_3) %>%
-      write.table(paste0("Data/processed/bootstrap_data/bts_under_gpd_models/num_quantiles_",num_quantiles,"_bts_",b, ".csv"),
-                  sep = ",", append = TRUE, quote = FALSE,
-                  col.names = FALSE, row.names = FALSE)
-    
-    rm("process_station_data", "apply_tau_to_temp", "df_1", "qm_1", "result_1", "num_quantiles", "b")
-    
-  }, import = c("process_station_data", "apply_tau_to_temp", "df_1", "qm_1", "num_quantiles", "b"))
-  
-  job::job({
-    
-    result_2 = process_station_data(df_2, qm_2)
-    
-    result_2 %>%
-      plyr::rbind.fill() %>%
-      as_tibble() %>%
-      dplyr::select(stn, date, scale_9, threshold_9, maxtp_0, maxtp_1, maxtp_2, maxtp_3) %>%
-      write.table(paste0("Data/processed/bootstrap_data/bts_under_gpd_models/num_quantiles_",num_quantiles,"_bts_",b, ".csv"),
-                  sep = ",", append = TRUE, quote = FALSE,
-                  col.names = FALSE, row.names = FALSE)
-    
-    rm("process_station_data", "apply_tau_to_temp", "df_2", "qm_2", "result_2", "num_quantiles", "b")
-    
-  }, import = c("process_station_data", "apply_tau_to_temp", "df_2", "qm_2", "num_quantiles", "b"))
-  
-  job::job({
-    
-    result_3 = process_station_data(df_3, qm_3)
-    
-    result_3 %>%
-      plyr::rbind.fill() %>%
-      as_tibble() %>%
-      dplyr::select(stn, date, scale_9, threshold_9, maxtp_0, maxtp_1, maxtp_2, maxtp_3) %>%
-      write.table(paste0("Data/processed/bootstrap_data/bts_under_gpd_models/num_quantiles_",num_quantiles,"_bts_",b, ".csv"),
-                  sep = ",", append = TRUE, quote = FALSE,
-                  col.names = FALSE, row.names = FALSE)
-    
-    rm("process_station_data", "apply_tau_to_temp", "df_3", "qm_3", "result_3", "num_quantiles", "b")
-    
-  }, import = c("process_station_data", "apply_tau_to_temp", "df_3", "qm_3", "num_quantiles", "b"))
-  
-  job::job({
-    
-    result_4 = process_station_data(df_4, qm_4)
-    
-    result_4 %>%
-      plyr::rbind.fill() %>%
-      as_tibble() %>%
-      dplyr::select(stn, date, scale_9, threshold_9, maxtp_0, maxtp_1, maxtp_2, maxtp_3) %>%
-      write.table(paste0("Data/processed/bootstrap_data/bts_under_gpd_models/num_quantiles_",num_quantiles,"_bts_",b, ".csv"),
-                  sep = ",", append = TRUE, quote = FALSE,
-                  col.names = FALSE, row.names = FALSE)
-    
-    rm("process_station_data", "apply_tau_to_temp", "df_4", "qm_4", "result_4", "num_quantiles", "b")
-    
-  }, import = c("process_station_data", "apply_tau_to_temp", "df_4", "qm_4", "num_quantiles", "b")) 
-  
+      dplyr::select(stn, date, scale_9, threshold_9, maxtp_0, maxtp_1, maxtp_2) %>%
+      saveRDS(paste0("data/processed/bootstrap_data/bts_under_gpd_models/num_quantiles_",num_quantiles,"_bts_",b))
+  }
+}
+
+
+
+batch_size = 5
+for(i in seq(1, 20, by = batch_size)){ #need to go to 200
+  job::job({generate_bts(seq(i,(i+batch_size-1)))})
 }
