@@ -3,10 +3,26 @@ gc()
 rm(list=ls())
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)
+library(sf)
 
 marg_mod = "mod_1"
 
 prep_rpareto_true = function(marg_mod){
+  
+  legend_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")
+  
+  my_coords <- legend_data %>%
+    st_as_sf(coords = c("longitude", "latitude"), crs = 4326)  # WGS84 (EPSG:4326)
+  
+  # Transform the coordinates to UTM Zone 29N (EPSG:32629)
+  proj_cords <- st_transform(my_coords, crs = 32629)
+  
+  # Extract the transformed coordinates, expressed in meters
+  proj_coords <- st_coordinates(proj_cords) 
+  
+  # Add projected coordinates and an ID column to clim_data
+  legend_data$longitude_proj <- proj_coords[, 1]
+  legend_data$latitude_proj <- proj_coords[, 2]
   
   num_quantiles = 30
   
@@ -157,11 +173,12 @@ prep_rpareto_true = function(marg_mod){
   to_remove = exceedances %>% map(is.null) %>% unlist %>% which()
   
   exceedances_locs = obs_data_standardised %>%
+    left_join(legend_data %>% select(stn, longitude_proj, latitude_proj), by = "stn" )%>%
     group_by(date) %>%
     group_map(~{
       if("KOP" %in% .x$stn){
-        rbind(.x %>% filter(stn == "KOP") %>% dplyr::select(id) %>% as.matrix(),
-              .x %>% filter(stn != "KOP") %>% dplyr::select(id ) %>% as.matrix())
+        rbind(.x %>% filter(stn == "KOP") %>% dplyr::select(longitude_proj, latitude_proj) %>% as.matrix(),  #used to be select(id) and not select(longitude, latitude)
+              .x %>% filter(stn != "KOP") %>% dplyr::select(longitude_proj, latitude_proj ) %>% as.matrix())
       }
     })
   
