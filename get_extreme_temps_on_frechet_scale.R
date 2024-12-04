@@ -28,7 +28,8 @@ obs_grid = obs_sites %>%
   mutate(year = year(date)) %>%
   left_join(lambda_df, by=c("stn", "year")) %>%
   left_join(glob_anomaly_reshaped, by = "year") %>%
-  left_join(threshold_9_df, by="stn")
+  left_join(threshold_9_df, by="stn")%>%
+  filter(! (stn %in% c("WSLBTB", "WSLHOB")))
 
 #only doing for 2 models
 
@@ -52,6 +53,8 @@ for(tmp in extreme_temps){
 res = as_tibble(res)
 names(res) = as.character(extreme_temps)
 
+
+#comverting the temperature into the frechet scale depending on the year and the location
 res %>%
   mutate(year = obs_grid$year,
          stn = obs_grid$stn) %>%
@@ -59,7 +62,7 @@ res %>%
   rename(temp = name,
          frechet_value = value) %>%
   mutate(temp = as.numeric(temp)) %>%
-  write_csv(paste0("output/obs_sites_extreme_temps_frechet_scale_",marg_mod,".csv"))
+  write_csv(paste0("output/plain_obs_sites_extreme_temps_frechet_scale_",marg_mod,".csv"))
 
 
 # # ---- Climate data ----------------------

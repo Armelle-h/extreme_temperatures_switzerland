@@ -37,12 +37,6 @@ HRD_ll = function(dt, lcs, vr, conditioned.site = 1, zeta, gamma, eta){
   psi = outer(conditioned.site.lambda[-1], conditioned.site.lambda[-1], "+") - Lambda # "covar" matrix
   detPsi = det(psi)
   
-  if (detPsi == 0) {
-    warning("Covariance matrix is singular, adding regularization.")
-    epsilon <- 1e-6  # Small regularization parameter
-    psi <- psi + epsilon * diag(nrow(psi))  # Regularize matrix
-  }
-  
   inversePsi = psi %>% solve()  # inverse of "covariance" matrix
   
   detPsi = determinant(psi)$modulus[1] # calculates log det by default
@@ -102,7 +96,7 @@ data_for_rpareto = readRDS(paste0("Data/processed/data_for_rpareto/true/plain_da
 .GlobalEnv$exceedances_locs <- data_for_rpareto$exceedances_locs #this is a list of location id (just the id, not the longitude-latitude pair)
 .GlobalEnv$HRD_ll <- HRD_ll
 
-.GlobalEnv$stat <- TRUE #do we want alpha and beta to vary with time or not ? 
+.GlobalEnv$stat <- TRUE
 
 fit <<- optimx::optimx(par = c(0.5,30), fn = ngll ,hessian = F, method = 'Nelder-Mead')
 
@@ -117,29 +111,3 @@ tibble(fit$p1, fit$p2) %>%
 
 
 
-
-
-
-
-
-
-
-
-
-
-num_cores <- detectCores() - 1
-cl <- parallel::makeCluster(num_cores, type = "PSOCK")
-clusterExport(cl, list("HRD_ll", "exceedances_locs"))
-clusterEvalQ(cl, {library(tidyverse); library(sf)})
-doParallel::registerDoParallel(cl)
-fit <<- optimx::optimx(par = c(1,1), fn = ngll ,hessian = F, method = 'Nelder-Mead') # Variance + range constant
-parallel::stopCluster(cl)
-
-#debug 
-num_cores <- detectCores() - 1
-cl <- parallel::makeCluster(num_cores, type = "PSOCK")
-clusterExport(cl, list("HRD_ll", "exceedances_locs"))
-clusterEvalQ(cl, {library(tidyverse); library(sf)})
-doParallel::registerDoParallel(cl)
-ngll(c(1,1))
-parallel::stopCluster(cl)

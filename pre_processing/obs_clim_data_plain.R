@@ -22,12 +22,18 @@ obs_data_plain = obs_data %>%
 
 #combining some stations that don't have the same name but are at exactly the same place, and record temperatures at non intersecting times
 
-
 obs_data_plain <- obs_data_plain %>%
   mutate(stn = if_else(stn == "AGAAR", "AAR", stn))%>%
   mutate(stn = if_else(stn == "BZN", "BEZ", stn))%>%
   mutate(stn = if_else(stn == "WSLLAE", "NABLAE", stn))%>%
   mutate(stn = if_else(stn == "TGFRA", "FRF", stn))
+
+
+#The stations WSLBTF and WSLBTB are overlapping, WSLBTF has more measurements, keeping WSLBTF, deleting WSLBTB
+#The stations WSLHOC and WSLHOB are overlapping, WSLHOC has more measurements, keeping WSLHOC, deleting WSLHOB.
+
+obs_data_plain = obs_data_plain %>%
+  filter( !(stn %in% c("WSLBTB", "WSLHOB")) )
 
 switzerland <- ne_countries(country = "Switzerland", scale = "medium", returnclass = "sf")
 
@@ -113,3 +119,27 @@ clim_data_extreme_9 %>%  #the weird position of the points comes from the fact t
   theme_minimal()
 
 write.csv(I_second_try, "Data/plain_id_lon_lat_correspondance.csv", row.names = FALSE)
+
+
+#adding a column to legend_data with latitude and longitude projected, is useful for the rPareto process
+
+library(sf)
+library(tidyverse)
+
+legend_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")
+
+
+my_coords <- legend_data %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)  # WGS84 (EPSG:4326)
+
+# Transform the coordinates to UTM Zone 29N (EPSG:32629)
+proj_cords <- st_transform(my_coords, crs = 32629)
+
+# Extract the transformed coordinates, expressed in meters
+proj_coords <- st_coordinates(proj_cords) 
+
+# Add projected coordinates and an ID column to clim_data, expressed in kilometers
+legend_data$longitude_proj <- proj_coords[, 1] / 1000
+legend_data$latitude_proj <- proj_coords[, 2] / 1000
+
+write.csv(legend_data, "Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv", row.names = FALSE) #distance will be in kilometers

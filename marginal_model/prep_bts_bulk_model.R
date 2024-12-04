@@ -233,7 +233,7 @@ bts_rng = seq(i,(i+batch_size-1))
 
 for(b in bts_rng){
   
-  if (i<=68){next}
+  if (b<=68){next}
   
   print(b)
   bts_data <- rlang::duplicate(obs_data, shallow = FALSE) # make a deep copy

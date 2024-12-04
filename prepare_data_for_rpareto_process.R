@@ -11,19 +11,6 @@ prep_rpareto_true = function(marg_mod){
   
   legend_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")
   
-  my_coords <- legend_data %>%
-    st_as_sf(coords = c("longitude", "latitude"), crs = 4326)  # WGS84 (EPSG:4326)
-  
-  # Transform the coordinates to UTM Zone 29N (EPSG:32629)
-  proj_cords <- st_transform(my_coords, crs = 32629)
-  
-  # Extract the transformed coordinates, expressed in meters
-  proj_coords <- st_coordinates(proj_cords) 
-  
-  # Add projected coordinates and an ID column to clim_data
-  legend_data$longitude_proj <- proj_coords[, 1]
-  legend_data$latitude_proj <- proj_coords[, 2]
-  
   num_quantiles = 30
   
   source('marginal_model/gpd_models.R')
@@ -42,9 +29,11 @@ prep_rpareto_true = function(marg_mod){
     mutate(year = lubridate::year(date))%>%
     left_join(vroom::vroom(paste0("Data/processed/plain_glob_anomaly_thresh_exceedance_lambda_num_quantiles_", num_quantiles, ".csv")))  %>%
     left_join(glob_anomaly_reshaped, by = "year")%>%
-    left_join(threshold_9_df, by="stn")
+    left_join(threshold_9_df, by="stn")%>%
+    filter(!(stn %in% c("WSLBTB", "WSLHOB")))
   
-  obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models_num_quantiles_", num_quantiles, ".csv"))
+  obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models_num_quantiles_", num_quantiles, ".csv"))%>%
+    filter(!(stn %in% c("WSLBTB", "WSLHOB")))
   
   # pull date which have 'conditioning' site
   #doesn't change anything as KOP has observation for the entirety of the temporal range
@@ -72,8 +61,7 @@ prep_rpareto_true = function(marg_mod){
   obs_data$scale = pred$scale
   obs_data$shape = pred$shape
   
-  #standardising the observation to a unit Pareto distribution by transforming them to unit Pareto distributions and then 
-  #transforming them to a frechet scale
+  #standardising the observation to a unit Pareto distribution or to a frechet scale
   obs_data_standardised = obs_data %>%
     group_by(stn, year) %>%
     group_map(~{
@@ -98,9 +86,11 @@ prep_rpareto_true = function(marg_mod){
       
       res[data <= threshold] = this_quant_mod(.x$maxtp[data <= threshold])       # alternative ... myecdf(data[data <= threshold])
       res[res<0]=0
+      res[res>0.999999]=0.999999
       
       .x$unif = res
-      .x$frechet_marg = -1/log(.x$unif)
+      #.x$frechet_marg = -1/log(.x$unif)
+      .x$pareto_marg = 1/(1-.x$unif)
       .x
     },.keep = T) %>%
     plyr::rbind.fill()%>%
@@ -112,12 +102,13 @@ prep_rpareto_true = function(marg_mod){
   # get cost of each event
   extreme_dates = obs_data_standardised %>%
     dplyr::group_by(date) %>%
-    dplyr::summarise(cost = mean(frechet_marg)) %>%
+    #dplyr::summarise(cost = mean(frechet_marg)) %>%
+    dplyr::summarise(cost = median(pareto_marg)) %>%  #dplyr::summarise(cost = mean(pareto_marg)) %>%
     ungroup() %>%
     arrange(desc(cost))
   
   # get cost threshold
-  threshold = quantile(extreme_dates$cost, 0.8) %>% as.numeric   #why would the cost be 0.8 ? 
+  threshold = quantile(extreme_dates$cost, 0.8) %>% as.numeric   #robust to outliers
   
   # get extreme dates
   extreme_dates = extreme_dates %>%
@@ -164,8 +155,10 @@ prep_rpareto_true = function(marg_mod){
       
       # our "conditional" site at the top of the list
       if("KOP" %in% .x$stn){
-        c(.x %>% filter(stn == "KOP") %>% pull(frechet_marg),
-          .x %>% filter(stn != "KOP") %>% pull(frechet_marg))
+        c(.x %>% filter(stn == "KOP") %>% pull(pareto_marg),
+          .x %>% filter(stn != "KOP") %>% pull(pareto_marg))
+        #c(.x %>% filter(stn == "KOP") %>% pull(frechet_marg),
+        #  .x %>% filter(stn != "KOP") %>% pull(frechet_marg))
       }
     })
   
@@ -195,7 +188,7 @@ prep_rpareto_true = function(marg_mod){
        exceedances_locs = exceedances_locs,
        thresh = threshold,
        extreme_dates = extreme_dates) %>%
-    saveRDS(paste0("Data/processed/data_for_rpareto/true/plain_data_for_rpareto_", marg_mod))
+    saveRDS(paste0("Data/processed/data_for_rpareto/true/robust_plain_data_for_rpareto_", marg_mod))
 }
 
 

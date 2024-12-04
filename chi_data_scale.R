@@ -1,3 +1,6 @@
+
+rm(list=ls())
+setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)
 marg_mod = 'mod_1'
 
@@ -5,17 +8,17 @@ calc_chi_true = function(marg_mod, yr, tmp){
   set.seed(123456)
   num_samples = 8000
   
-  sites = write_csv("Data/processed/plain_obs_pairs_with_dist.csv") %>% sample_n(num_samples)
+  sites = read_csv("Data/processed/plain_obs_pairs_with_dist.csv") %>% sample_n(num_samples)
   
   obs_sites = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv") %>%
     select("stn", "longitude", "latitude")%>%
     unique()
   
-  grid_simulated = as.data.frame(read_csv("data/processed/obs_grid_simulated_on.csv")) %>%
+  grid_simulated = as.data.frame(read_csv("Data/processed/plain_obs_grid_simulated_on.csv")) %>%
     left_join(obs_sites) %>% as.tibble()
   
   frechet_val = grid_simulated %>%
-    left_join(read_csv(paste0("output/obs_sites_extreme_temps_frechet_scale_",marg_mod,".csv")) %>% filter(temp == tmp, year == yr)) %>% 
+    left_join(read_csv(paste0("output/plain_obs_sites_extreme_temps_frechet_scale_",marg_mod,".csv")) %>% filter(temp == tmp, year == yr)) %>% 
     pull(frechet_value)
   
   
@@ -32,14 +35,26 @@ calc_chi_true = function(marg_mod, yr, tmp){
       id2 = sites[s,]$V2
       
       # ---- to get all sims at loc with id v1 ---> unlist(lapply(my_simulations, "[[", sites[s,]$V1))
-      id1_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$Station == id1))) > frechet_val[which(grid_simulated$Station == id1)])
-      id2_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$Station == id2))) > frechet_val[which(grid_simulated$Station == id2)])
+      id1_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id1))) > frechet_val[which(grid_simulated$stn == id1)])
+      id2_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id2))) > frechet_val[which(grid_simulated$stn == id2)])
       
       tibble(sites[s,] %>% mutate(chi =sum(id1_exceeds & id2_exceeds)/sum(id1_exceeds) )) %>%
         write_csv(paste0("output/simulations/simulation_summary/chi_data_scale_clim_grid_model_",marg_mod,"_yr_",yr, "_conditioned_on_",tmp,".csv"),append = T)
     }
   }
 }
+
+calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 30)
+
+
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 30)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 29)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 28)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 30)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 29)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 28)})
+
+
 
 # job::job({calc_chi_true(marg_mod = "mod_2", yr = 2020, tmp = 30)})
 # job::job({calc_chi_true(marg_mod = "mod_2", yr = 2020, tmp = 29)})
@@ -49,7 +64,7 @@ calc_chi_true = function(marg_mod, yr, tmp){
 # job::job({calc_chi_true(marg_mod = "mod_2", yr = 1942, tmp = 28)})
 
 
-
+#for later
 calc_chi_bts = function(marg_mod, yr, tmp, bts_seq){
   num_samples = 8000 --
     set.seed(123456)
@@ -57,9 +72,9 @@ calc_chi_bts = function(marg_mod, yr, tmp, bts_seq){
   sites = read_csv("data/processed/obs_pairs_with_dist.csv") %>% sample_n(num_samples)
   
   obs_sites = read_csv("data/processed/obs_data.csv") %>%
-    dplyr::select(Station, Long.projected, Lat.projected) %>%
+    dplyr::select(stn, Long.projected, Lat.projected) %>%
     unique() %>%
-    left_join(read_csv("data/processed/obs_data_dist_to_sea.csv") %>% dplyr::select(Station, dist_sea))
+    left_join(read_csv("data/processed/obs_data_dist_to_sea.csv") %>% dplyr::select(stn, dist_sea))
   
   grid_simulated = as.data.frame(read_csv("data/processed/obs_grid_simulated_on.csv")) %>%
     left_join(obs_sites) %>% as.tibble()
@@ -74,7 +89,7 @@ calc_chi_bts = function(marg_mod, yr, tmp, bts_seq){
       print("yay bts")
       frechet_val = grid_simulated %>%
         left_join(read_csv(paste0("output/extreme_frechet_values_bts/obs_sites_extreme_temps_bootstraps_frechet_scale_", marg_mod,"_bts_", bts ,".csv"),
-                           col_names = c('year', 'Station', 'bts', 'temp', 'frechet_value')) %>% filter(temp == tmp, year == yr)) %>%
+                           col_names = c('year', 'stn', 'bts', 'temp', 'frechet_value')) %>% filter(temp == tmp, year == yr)) %>%
         pull(frechet_value)
       
       my_simulations = readRDS(paste0("output/simulations/rescaled_simulations_on_obs_grid/bootstraps/bootstrap_",bts ,"_model_", marg_mod,"_yr_", yr,"_min_temp_conditioned_on_", tmp))
@@ -85,8 +100,8 @@ calc_chi_bts = function(marg_mod, yr, tmp, bts_seq){
         id2 = sites[s,]$V2
         
         # ---- to get all sims at loc with id v1 ---> unlist(lapply(my_simulations, "[[", sites[s,]$V1))
-        id1_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$Station == id1))) > frechet_val[which(grid_simulated$Station == id1)])
-        id2_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$Station == id2))) > frechet_val[which(grid_simulated$Station == id2)])
+        id1_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id1))) > frechet_val[which(grid_simulated$stn == id1)])
+        id2_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id2))) > frechet_val[which(grid_simulated$stn == id2)])
         
         
         tibble(bts = bts, sites[s,] %>% mutate(chi =sum(id1_exceeds & id2_exceeds)/sum(id1_exceeds) )) %>%
@@ -95,7 +110,6 @@ calc_chi_bts = function(marg_mod, yr, tmp, bts_seq){
     }
   }
 }
-
 
 # job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2020, tmp = 30, bts_seq = seq(1,100))})
 # job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2020, tmp = 30, bts_seq = seq(101,200))})
