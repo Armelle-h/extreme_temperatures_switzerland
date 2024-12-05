@@ -6,7 +6,7 @@ library(vroom)
 library(evgam)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
-
+#not for the plain, for the whole of switzerland
 obs_data = read_csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv")
 
 is.subset = function(A, B) all(A %in% B)
@@ -161,6 +161,24 @@ job::job({run_bts_lookup(seq(461,470))})
 job::job({run_bts_lookup(seq(471,480))})
 job::job({run_bts_lookup(seq(481,490))})
 job::job({run_bts_lookup(seq(491,500))})
+
+#in order not to mess up the order of the files, small modif
+
+all_bts = c(readRDS("Data/processed/bootstrap_data/bootstrapped_dates"))
+
+list.files("Data/processed/bootstrap_data/temp/temp_2/") %>%
+  map(~{
+    paste0('Data/processed/bootstrap_data/temp/temp_2/',.x) %>% print()
+  })
+
+files_to_read = list.files("Data/processed/bootstrap_data/temp/temp_2/") 
+
+for(fff in files_to_read){
+  all_bts <- c(all_bts, readRDS(paste0("Data/processed/bootstrap_data/temp/temp_2/", fff)))
+}
+saveRDS(all_bts, "Data/processed/bootstrap_data/bootstrapped_dates_200") #to check if all good
+
+
 
 
 list.files("Data/processed/bootstrap_data/temp/") %>%

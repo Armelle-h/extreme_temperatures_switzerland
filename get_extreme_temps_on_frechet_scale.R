@@ -8,25 +8,28 @@ marg_mod = "mod_1"
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 source('marginal_model/gpd_models.R')
 
+#all stations are associated with a value
 obs_sites = read_csv("Data/Observed_data/plain_obs_data_gpd_model.csv") %>%
-  dplyr::select(stn, date, scale_9, id) %>%
+  dplyr::select(stn, scale_9) %>%
   unique()
 
+#all stations are associated with a value
 threshold_9_df = vroom::vroom("Data/processed/plain_1971_2022_JJA_obs_data_bulk_model.csv")%>%
   dplyr::select(threshold_9, stn)%>%
   unique()
 
+#thresh_exceedance proba defined for all stations and all years
 lambda_df = vroom::vroom(paste0("Data/processed/plain_glob_anomaly_thresh_exceedance_lambda_num_quantiles_", num_quantiles, ".csv") )
 
+#defined for all years
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
 
 glob_anomaly_reshaped = glob_anomaly %>%
   select(c("year", "JJA"))%>%
   rename(glob_anom = JJA)
 
-obs_grid = obs_sites %>% 
-  mutate(year = year(date)) %>%
-  left_join(lambda_df, by=c("stn", "year")) %>%
+obs_grid = lambda_df %>% 
+  left_join(obs_sites, by = "stn") %>%
   left_join(glob_anomaly_reshaped, by = "year") %>%
   left_join(threshold_9_df, by="stn")%>%
   filter(! (stn %in% c("WSLBTB", "WSLHOB")))
@@ -43,31 +46,57 @@ if(marg_mod == "mod_0"){
   obs_grid$shape = my_predict_1(as.numeric(unlist(read_csv("output/gpd_model_fits/model_1_true.csv"))), obs_grid$scale_9, obs_grid$glob_anom)$shape
 }
 
-extreme_temps = seq(22.9, 36, by = 0.25)  #will need to be adapted
+extreme_temps = seq(25, 38, by = 0.25)  #defined such that tmp in extreme temps will exceed threshold_9
 
-res = c()
+res_frechet = c()
+res_pareto = c()
+
 for(tmp in extreme_temps){
-  res = cbind(res,(-1/log(1-obs_grid$thresh_exceedance_9*(1-evd::pgpd(q = (tmp - obs_grid$threshold_9),  scale = obs_grid$scale, shape =  obs_grid$shape[1])))))
+  #converts to uniform scale using the distribution function for tail data in the bulk model then converts to frechet
+  #or pareto scale
+  #this is done on tmp-threshold_9 which is the definition domain
+  res_frechet = cbind(res_frechet,(-1/log(1-obs_grid$thresh_exceedance_9*(1-evd::pgpd(q = (tmp - obs_grid$threshold_9),  scale = obs_grid$scale, shape =  obs_grid$shape[1])))))
+  res_pareto = cbind(res_pareto,(1/(obs_grid$thresh_exceedance_9*(1-evd::pgpd(q = (tmp - obs_grid$threshold_9),  scale = obs_grid$scale, shape =  obs_grid$shape[1])))))
 }
 
-res = as_tibble(res)
-names(res) = as.character(extreme_temps)
+res_frechet = as_tibble(res_frechet)
+res_pareto = as_tibble(res_pareto)
+names(res_frechet) = as.character(extreme_temps)
+names(res_pareto) = as.character(extreme_temps)
 
 
-#comverting the temperature into the frechet scale depending on the year and the location
-res %>%
+#converting the temperature into the frechet scale or pareto scale depending on the year and the location
+res_frechet = res_frechet %>%
   mutate(year = obs_grid$year,
          stn = obs_grid$stn) %>%
   pivot_longer(-c(year, stn)) %>%
   rename(temp = name,
          frechet_value = value) %>%
-  mutate(temp = as.numeric(temp)) %>%
-  write_csv(paste0("output/plain_obs_sites_extreme_temps_frechet_scale_",marg_mod,".csv"))
+  mutate(temp = as.numeric(temp))
+
+res_pareto = res_pareto %>%
+  mutate(year = obs_grid$year,
+         stn = obs_grid$stn) %>%
+  pivot_longer(-c(year, stn)) %>%
+  rename(temp = name,
+         pareto_value = value) %>%
+  mutate(temp = as.numeric(temp))
+
+if (identical(res_frechet[, c("year", "stn", "temp")], res_pareto[, c("year", "stn", "temp")])) {
+  # Add col4 from df1 to df2
+  res_frechet$pareto_value <- res_pareto$pareto_value
+} else {
+  stop("Dataframes do not align. Check year, stn, temp.")
+}
+
+#defined for all years, all stations, all temperatures in "extreme_temps"
+res_frechet %>%
+  write_csv(paste0("output/plain_obs_sites_extreme_temps_frechet_pareto_scale_",marg_mod,".csv"))
 
 
 # # ---- Climate data ----------------------
 
-#NOT THE SMAE AS OBS SMOOTHED QUANTILE !!!
+#NOT THE SAME AS OBS SMOOTHED QUANTILE !!!
 
 num_quantiles = 30
 
@@ -90,21 +119,45 @@ clim_grid$shape = this_fit_mod[length(this_fit_mod)]
 clim_grid$scale = my_predict_1(this_fit_mod, clim_grid$scale_9, clim_grid$glob_anom)$scale
 
 
-extreme_temps = seq(28, 38, by = 0.25)  #used to be seq(26, 36, by = 0.25)  | no clue, would have to read the theory on Pareto processes
+extreme_temps = seq(22, 36, by = 0.25)  #used to be seq(26, 36, by = 0.25)  | no clue, would have to read the theory on Pareto processes
 
-res = c()
+res_frechet = c()
+res_pareto = c()
 for(tmp in extreme_temps){
-  res = cbind(res,(-1/log(1-clim_grid$thresh_exceedance_9*(1-evd::pgpd(q = (tmp - clim_grid$threshold_9),  scale = clim_grid$scale, shape =  clim_grid$shape[1])))))
+  #converts to uniform scale using the distribution function for tail data in the bulk model then converts to frechet
+  #or pareto scale
+  #this is done on tmp-threshold_9 which is the definition domain 
+  res_frechet = cbind(res_frechet,(-1/log(1-clim_grid$thresh_exceedance_9*(1-evd::pgpd(q = (tmp - clim_grid$threshold_9),  scale = clim_grid$scale, shape =  clim_grid$shape[1])))))
+  res_pareto = cbind(res_pareto,(1/(clim_grid$thresh_exceedance_9*(1-evd::pgpd(q = (tmp - clim_grid$threshold_9),  scale = clim_grid$scale, shape =  clim_grid$shape[1])))))
 }
 
-res = as_tibble(res)
-names(res) = as.character(extreme_temps)
+res_frechet = as_tibble(res_frechet)
+res_pareto = as_tibble(res_pareto)
+names(res_frechet) = as.character(extreme_temps)
+names(res_pareto) = as.character(extreme_temps)
 
-res %>%
+res_frechet = res_frechet %>%
   mutate(year = clim_grid$year,
          id = clim_grid$id) %>%
   pivot_longer(-c(year, id)) %>%
   rename(temp = name,
          frechet_value = value) %>%
-  mutate(temp = as.numeric(temp)) %>%
-  write_csv(paste0("output/plain_clim_grid_extreme_temps_frechet_scale_",marg_mod,".csv"))
+  mutate(temp = as.numeric(temp))
+
+res_pareto = res_pareto %>%
+  mutate(year = clim_grid$year,
+         id = clim_grid$id) %>%
+  pivot_longer(-c(year, id)) %>%
+  rename(temp = name,
+         pareto_value = value) %>%
+  mutate(temp = as.numeric(temp))
+
+if (identical(res_frechet[, c("year", "id", "temp")], res_pareto[, c("year", "id", "temp")])) {
+  # Add col4 from df1 to df2
+  res_frechet$pareto_value <- res_pareto$pareto_value
+} else {
+  stop("Dataframes do not align. Check year, stn, temp.")
+}
+
+res_frechet %>%
+  write_csv(paste0("output/plain_clim_grid_extreme_temps_frechet_pareto_scale_",marg_mod,".csv"))

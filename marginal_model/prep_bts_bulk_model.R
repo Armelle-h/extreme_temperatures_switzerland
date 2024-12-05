@@ -226,14 +226,12 @@ covars = obs_data %>%
 
 # i takes values in 1  21  41  61  81 101 121 141 161 181    (need to do 10 times the code below)
 
-i = 61
+i = 121
 
 batch_size = 20
 bts_rng = seq(i,(i+batch_size-1))
 
 for(b in bts_rng){
-  
-  if (b<=68){next}
   
   print(b)
   bts_data <- rlang::duplicate(obs_data, shallow = FALSE) # make a deep copy

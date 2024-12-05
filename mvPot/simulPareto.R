@@ -2,7 +2,7 @@
 library(evd)
 
 
-simulPareto <- function(n, vario_mat, nCores = 1, cl = NULL){
+simulPareto <- function(n, vario_mat, nCores = 1, cl = NULL, robust = FALSE){
   
   gamma = vario_mat
   
@@ -22,8 +22,13 @@ simulPareto <- function(n, vario_mat, nCores = 1, cl = NULL){
   
   sims <- lapply(1:n, function(i){
     buffer <- exp(proc[,i] - proc[k[i],i] - gamma[,k[i]]) #log-gaussian process 
-    proc[,i] <-evd::rgpd(1, loc=1, scale=1, shape=1) * buffer / mean(buffer)  #from the decomposition Y_r = R W_r ,
-    #R unit pareto, W_r is buffer normalized such that it has risk 1, the risk function is defined as the mean.
+    if (robust == TRUE){
+      proc[,i] <-evd::rgpd(1, loc=1, scale=1, shape=1) * buffer / median(buffer)
+    } else{
+      proc[,i] <-evd::rgpd(1, loc=1, scale=1, shape=1) * buffer / mean(buffer) #from the decomposition Y_r = R W_r ,
+      #R unit pareto, W_r is buffer normalized such that it has risk 1, the risk function is defined as the mean.
+    }
+    
     proc[proc == 0] = .Machine$double.xmin
     proc[,i]})
   return(sims)
