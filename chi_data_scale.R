@@ -4,28 +4,36 @@ setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)
 marg_mod = 'mod_1'
 
-calc_chi_true = function(marg_mod, yr, tmp){
+#computes the chi dependence static for a given model, year and temperature
+calc_chi_true = function(marg_mod, yr, tmp, nu_name, robust=FALSE){
+  
+  if (robust == TRUE){
+    true_folder = "true_robust"
+  } else{
+    true_folder = "true"
+  }
+  
   set.seed(123456)
-  num_samples = 8000
+  #number of site pairs to be sampled
+  num_samples = 1000 #used to be 8000, just to check if all works well 
   
   sites = read_csv("Data/processed/plain_obs_pairs_with_dist.csv") %>% sample_n(num_samples)
   
   obs_sites = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv") %>%
-    select("stn", "longitude", "latitude")%>%
+    select("stn", "longitude_proj", "latitude_proj")%>%
     unique()
   
   grid_simulated = as.data.frame(read_csv("Data/processed/plain_obs_grid_simulated_on.csv")) %>%
-    left_join(obs_sites) %>% as.tibble()
+    left_join(obs_sites) %>% as_tibble()
   
-  frechet_val = grid_simulated %>%
-    left_join(read_csv(paste0("output/plain_obs_sites_extreme_temps_frechet_scale_",marg_mod,".csv")) %>% filter(temp == tmp, year == yr)) %>% 
-    pull(frechet_value)
+  pareto_val = grid_simulated %>%
+    left_join(read_csv(paste0("output/plain_obs_sites_extreme_temps_frechet_pareto_scale_",marg_mod,".csv")) %>% filter(temp == tmp, year == yr)) %>% 
+    pull(pareto_value)
   
-  
-  if(file.exists(paste0("output/simulations/rescaled_simulations_on_obs_grid/true/",marg_mod,"_yr_",yr, "_min_temp_conditioned_on_",tmp))){
-    my_simulations = readRDS(paste0("output/simulations/rescaled_simulations_on_obs_grid/true/",marg_mod,"_yr_",yr, "_min_temp_conditioned_on_",tmp))
+  if(file.exists(paste0("output/simulations/rescaled_simulations_on_obs_grid/", true_folder,"/nu_",nu_name,"/",marg_mod,"_yr_",yr, "_min_temp_conditioned_on_",tmp))){
+    my_simulations = readRDS(paste0("output/simulations/rescaled_simulations_on_obs_grid/", true_folder,"/nu_",nu_name,"/",marg_mod,"_yr_",yr, "_min_temp_conditioned_on_",tmp))
     
-    for(s in seq(nrow(sites))){
+    for(s in seq(nrow(sites))){ #we have 8000 sites --> takes a really long time to run :(
       
       if((s %% 100) == 0){
         print(s)
@@ -35,24 +43,32 @@ calc_chi_true = function(marg_mod, yr, tmp){
       id2 = sites[s,]$V2
       
       # ---- to get all sims at loc with id v1 ---> unlist(lapply(my_simulations, "[[", sites[s,]$V1))
-      id1_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id1))) > frechet_val[which(grid_simulated$stn == id1)])
-      id2_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id2))) > frechet_val[which(grid_simulated$stn == id2)])
+      
+      #computes chi = number of simulations where id1 and id2 exceed the threshold / nb od simulations where id1 exceeds.
+      #conditional proba that site id2 exceeds threshold given that site id1 does.
+      #we don't necessarily have values for all the pairs, it depends on the pairs simulated
+      id1_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id1))) > pareto_val[which(grid_simulated$stn == id1)])
+      id2_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id2))) > pareto_val[which(grid_simulated$stn == id2)])
       
       tibble(sites[s,] %>% mutate(chi =sum(id1_exceeds & id2_exceeds)/sum(id1_exceeds) )) %>%
-        write_csv(paste0("output/simulations/simulation_summary/chi_data_scale_clim_grid_model_",marg_mod,"_yr_",yr, "_conditioned_on_",tmp,".csv"),append = T)
+        write_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_",yr, "_conditioned_on_",tmp,".csv"),append = T)
     }
   }
 }
 
-calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 30)
+#20 minutes for 1000 simulations. A bit more than 2 hours for 8000 !!!
+
+#30, 29, 28 correspond to the 0.8, 0.85 and 0.9 marginal quantile of the observed data.
 
 
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 30)})
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 29)})
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 28)})
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 30)})
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 29)})
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 28)})
+#for switzerland, we should have 27, 28 and 29 degrees
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 30, nu_name = "015", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 29, nu_name = "015", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 28, nu_name = "015", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 30, nu_name = "015", robust = TRUE)})
+
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 29, nu_name = "015", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 28, nu_name = "015", robust = TRUE)})
 
 
 
@@ -132,7 +148,18 @@ calc_chi_bts = function(marg_mod, yr, tmp, bts_seq){
 
 
 # # ------ PLOT MODELS
-marg_mod = 'mod_2'
+marg_mod = 'mod_1'
+
+robust = TRUE
+
+if (robust == TRUE){
+  true_folder = "true_robust"
+} else{
+  true_folder = "true"
+}
+
+nu_name = "015"
+
 chi_bts = rbind(read_csv(paste0("output/simulations/simulation_summary/bootstrap_chi_data_scale_model_", marg_mod,"_bts_yr_1942_conditioned_on_28.csv"),
                          col_names = c('bts', 's1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '1942'),
                 read_csv(paste0("output/simulations/simulation_summary/bootstrap_chi_data_scale_model_", marg_mod,"_bts_yr_1942_conditioned_on_29.csv"),
@@ -157,26 +184,66 @@ chi_bts_summety = chi_bts %>%
   summarise(upper = quantile(mn, 0.975),
             lower = quantile(mn, 0.025))
 
-chi_true = rbind(read_csv(paste0("output/simulations/simulation_summary/chi_data_scale_clim_grid_model_", marg_mod,"_yr_1942_conditioned_on_28.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '1942'),
-                 read_csv(paste0("output/simulations/simulation_summary/chi_data_scale_clim_grid_model_", marg_mod,"_yr_1942_conditioned_on_29.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "29°C", year = '1942'),
-                 read_csv(paste0("output/simulations/simulation_summary/chi_data_scale_clim_grid_model_", marg_mod,"_yr_1942_conditioned_on_30.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "30°C", year = '1942'),
-                 read_csv(paste0("output/simulations/simulation_summary/chi_data_scale_clim_grid_model_", marg_mod,"_yr_2020_conditioned_on_28.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '2020'),
-                 read_csv(paste0("output/simulations/simulation_summary/chi_data_scale_clim_grid_model_", marg_mod,"_yr_2020_conditioned_on_29.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "29°C", year = '2020'),
-                 read_csv(paste0("output/simulations/simulation_summary/chi_data_scale_clim_grid_model_", marg_mod,"_yr_2020_conditioned_on_30.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "30°C", year = '2020'))
 
+marg_mod = 'mod_1'
+
+robust = TRUE
+
+if (robust == TRUE){
+  true_folder = "true_robust"
+} else{
+  true_folder = "true"
+}
+
+nu_name = "015"
+
+chi_true = rbind(read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_1971_conditioned_on_28.csv"),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '1971'),
+                 read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_1971_conditioned_on_29.csv"),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "29°C", year = '1971'),
+                 read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_1971_conditioned_on_30.csv"),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "30°C", year = '1971'),
+                 read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_2022_conditioned_on_28.csv"),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '2022'),
+                 read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_2022_conditioned_on_29.csv"),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "29°C", year = '2022'),
+                 read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_2022_conditioned_on_30.csv"),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "30°C", year = '2022'))
+
+
+max_distance <- max(chi_true$distance, na.rm = TRUE)
+
+#summarize is deprecated but this gives me what I want 
 chi_true_summary = chi_true %>%
-  mutate(dist_bin = cut(distance, breaks=seq(0, 4, length.out = 20))) %>%
+  mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 20))) %>%
   group_by(dist_bin) %>%
   summarise(year, temp, chi, distance = mean(distance))  %>%
   group_by(distance, year, temp) %>%
   drop_na() %>%
-  summarise(mn = mean(chi))
+  summarise(mean_chi = mean(chi), median_chi = median(chi))
+
+chi_true_summary %>%
+  ggplot(aes(x = distance, y = mean_chi)) +
+  geom_point() +
+  facet_wrap(~ temp, scales = "free") +
+  ylim(0, 1) +
+  theme_minimal() +
+  labs(title = "Scatter plots of distance vs mean by temperature")
+
+
+
+
+#CAN STOP HERE !!!!!
+
+
+
+
+
+
+
+
+
+
 
 
 # # ----- Uncondition

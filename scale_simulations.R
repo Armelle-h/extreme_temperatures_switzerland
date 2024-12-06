@@ -58,6 +58,7 @@ scale_true_sim = function(marg_mod, yr, tmp, nu_name, robust = TRUE){
     my_simulations_extremes = c(my_simulations_extremes, readRDS(paste0("output/simulations/simulations_on_obs_grid/", true_folder,"/nu_",nu_name, "/nu_", nu_name,"_",marg_mod,"_run_",i)))
   }
   
+  #y_i^P(s)/r_i
   my_simulations_standardised = list()
   for (i in 1:length(my_simulations_extremes)) {
     if (robust == TRUE){
@@ -65,11 +66,12 @@ scale_true_sim = function(marg_mod, yr, tmp, nu_name, robust = TRUE){
     } else{
       this_cost = mean(my_simulations_extremes[[i]])
     }
-    my_simulations_standardised[[i]] = my_simulations_extremes[[i]]/this_cost #making all simulations cost = 1.
-    #has something to do with section 4.4
+    my_simulations_standardised[[i]] = my_simulations_extremes[[i]]/this_cost 
   }
   
   # --- maximum pareto margin at each of my simulation sites
+  
+  #computing omega_(m)(s) for each site
   max_at_each_site = c()
   for(s in seq(length(my_simulations_standardised[[1]]))){
     max_at_each_site = c(max_at_each_site, lapply(my_simulations_standardised, "[[", s) %>% unlist %>% max)
@@ -77,13 +79,13 @@ scale_true_sim = function(marg_mod, yr, tmp, nu_name, robust = TRUE){
   
   this_grid$scaler = this_grid$pareto_value/max_at_each_site 
   this_grid$scaler[this_grid$scaler == -Inf] = Inf
-  br = min(this_grid$scaler)
+  br = min(this_grid$scaler) #corresponds to b_T(t)
   
   my_r = evd::rgpd(n=length(my_simulations_extremes), 1,1,1)
   # --- scale simulations back up
   my_simulations_rescaled = my_simulations_standardised
   for (i in 1:length(my_simulations_standardised)) {
-    my_simulations_rescaled[[i]] = (my_r[i] * br)*my_simulations_standardised[[i]]
+    my_simulations_rescaled[[i]] = (my_r[i] * br)*my_simulations_standardised[[i]] #corresponds to what is inside the importance sampling estimator
   }
   
   my_simulations_rescaled %>% saveRDS(paste0("output/simulations/rescaled_simulations_on_obs_grid/", true_folder,"/nu_",nu_name,"/",marg_mod,"_yr_",yr, "_min_temp_conditioned_on_",tmp))
