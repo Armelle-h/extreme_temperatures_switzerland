@@ -51,32 +51,50 @@ fit_quant_regression = function(bts_range, marg_mod, num_quantiles, zeta_list, o
     
     dat = dat %>%
       mutate(year = lubridate::year(date)) %>%
-      left_join(glob_anom_df)
+      left_join(glob_anom_df, by ="year")
     
-    print(paste0("Bootstrap number ", file_name))
+    #print(paste0("Bootstrap number ", file_name))
     for(q in seq_along(quantiles_to_estimate_bulk)){
       
       zeta = zeta_list[q] # quantile to estimate
       
-      print(paste0("quantile ", zeta))
+      #print(paste0("quantile ", zeta))
       
       # spatial covariate [q^tau_c(s)]
       obs_data$thisval = obs_data$value %>% lapply(`[[`, q) %>% unlist
       
       dat = dat %>%
         dplyr::select(date,stn,maxtp,year,glob_anom) %>%
-        left_join(obs_data %>% dplyr::select(stn, value = thisval) %>% unique) %>% drop_na()
+        left_join(obs_data %>% dplyr::select(stn, value = thisval) %>% unique, by = "stn") %>% drop_na()
       
+      #issue when the hessian is positive negative definite. Enforcing regularisation conditions
+      if(q==1){
+        inits_coeff = c(-2, 1, 3)
+      } else{
+        inits_coeff = c(quantile_model_fit$location$coefficients[1],quantile_model_fit$location$coefficients[2],quantile_model_fit$location$coefficients[3])
+      }
       
       quantile_model_fit <- evgam(maxtp ~ value + glob_anom, dat,
-                                  family = "ald", ald.args = list(tau = zeta))
+                                  family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
+      
+      new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2])
+      
+      if(q == 1){
+        prev_coeff = new_coeff
+      }
+      
+      if (q>1){
+        if (max(abs(prev_coeff-new_coeff))>3){
+          new_coeff = prev_coeff
+        }
+      }
       
       # save parameter estimates w CI
       tibble(bts = file_name,
              tau = zeta,
-             beta_0 = quantile_model_fit$location$coefficients[1],
-             beta_1 = quantile_model_fit$location$coefficients[2],
-             beta_2 = quantile_model_fit$location$coefficients[3])%>%
+             beta_0 = new_coeff[1],
+             beta_1 = new_coeff[2],
+             beta_2 = new_coeff[3])%>%
         write_csv(paste0("output/bts_quant_reg_", marg_mod, "_num_quantiles_", num_quantiles, ".csv"), append = T)
     }
   }
@@ -101,9 +119,10 @@ obs_data = obs_data %>%
 
 rm('glob_anomaly', 'glob_anomaly_reshaped')
 
-#takes   time 
+#takes 25 minutes 
 
-for(i in seq(1,16, 4)){ 
+#then  seq(1, 16, 4) seq(17, 32, 4)   seq(33, 48, 4) seq(49, 64, 4)  seq(65, 80, 4) seq(81, 96, 4) seq(97, 112, 4) seq(113, 128, 4), seq(129, 144, 4) seq(145, 160, 4) seq(161, 176, 4) seq(177, 192, 4) seq(193, 200, 2) seq(200, 200)
+for(i in seq(129, 144, 4)){ 
   seq_ = seq(i, i+3)
   job::job({fit_quant_regression(seq_,  'mod_1', 30, zeta_list, obs_data)}, import = c("fit_quant_regression", "obs_data", "zeta_list", "seq_")) 
 }
@@ -241,7 +260,7 @@ calc_lambda_bts = function(bts_range, marg_mod, num_quantiles, obs_data, zeta_li
 }
 
 
-num_quantiles = 40 
+num_quantiles = 30 
 
 obs_data = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
@@ -474,7 +493,7 @@ rm('glob_anomaly', 'glob_anomaly_reshaped')
 
 #one iteration takes >20 minutes, maybe 30 minutes. Check if doing paralleization would be possible.
 
-job::job({get_bulk_bts_on_clim_grid(seq(1,1),  'mod_0', 40, temporal_covariates)}, import=c("get_bulk_bts_on_clim_grid", "temporal_covariates"))
+job::job({get_bulk_bts_on_clim_grid(seq(1,1),  'mod_0', 30, temporal_covariates)}, import=c("get_bulk_bts_on_clim_grid", "temporal_covariates"))
 
 
 # job::job({get_bulk_bts_on_clim_grid(seq(1,20),  'mod_2', 40)}) #doing it on 40 quantiles
@@ -500,7 +519,7 @@ job::job({get_bulk_bts_on_clim_grid(seq(1,1),  'mod_0', 40, temporal_covariates)
 # job::job({get_bulk_bts_on_clim_grid(seq(201,300), 'mod_0', 30)}
  
  
- job::job({get_bulk_bts_on_clim_grid(seq(1,20),  'mod_0', 40)}) #doing it on 40 quantiles 
+ job::job({get_bulk_bts_on_clim_grid(seq(1,20),  'mod_0', 30)}) #doing it on 40 quantiles 
 # job::job({get_bulk_bts_on_clim_grid(seq(21,40), 'mod_0', 30)})
 # job::job({get_bulk_bts_on_clim_grid(seq(41,60), 'mod_0', 30)})
 # job::job({get_bulk_bts_on_clim_grid(seq(61,80), 'mod_0', 30)})
@@ -516,7 +535,7 @@ job::job({get_bulk_bts_on_clim_grid(seq(1,1),  'mod_0', 40, temporal_covariates)
 # job::job({get_bulk_bts_on_clim_grid(seq(101,200), 'mod_1', 30)})
 # job::job({get_bulk_bts_on_clim_grid(seq(201,300), 'mod_1', 30)}
  
- job::job({get_bulk_bts_on_clim_grid(seq(1,20),  'mod_1', 40)}) #doing it on 40 quantiles
+ job::job({get_bulk_bts_on_clim_grid(seq(1,20),  'mod_1', 30)}) #doing it on 40 quantiles
 # job::job({get_bulk_bts_on_clim_grid(seq(21,40), 'mod_1', 30)})
 # job::job({get_bulk_bts_on_clim_grid(seq(41,60), 'mod_1', 30)})
 # job::job({get_bulk_bts_on_clim_grid(seq(61,80), 'mod_1', 30)})

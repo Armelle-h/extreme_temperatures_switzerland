@@ -15,7 +15,7 @@ calc_chi_true = function(marg_mod, yr, tmp, nu_name, robust=FALSE){
   
   set.seed(123456)
   #number of site pairs to be sampled
-  num_samples = 1000 #used to be 8000, just to check if all works well 
+  num_samples = 1000 #used to be 8000, but in the report they mentioned they used 500 bootstraps 
   
   sites = read_csv("Data/processed/plain_obs_pairs_with_dist.csv") %>% sample_n(num_samples)
   
@@ -82,7 +82,7 @@ job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 28, nu_name = "015"
 
 #for later
 calc_chi_bts = function(marg_mod, yr, tmp, bts_seq){
-  num_samples = 8000 --
+  num_samples = 500 -- #used to be 8000, but in the report mentioned 500
     set.seed(123456)
   
   sites = read_csv("data/processed/obs_pairs_with_dist.csv") %>% sample_n(num_samples)
@@ -174,7 +174,7 @@ chi_bts = rbind(read_csv(paste0("output/simulations/simulation_summary/bootstrap
                          col_names = c('bts', 's1', 's2', 'distance', 'chi')) %>% mutate(temp = "30°C", year = '2020'))
 
 chi_bts_summety = chi_bts %>%
-  mutate(dist_bin = cut(distance, breaks=seq(0, 4, length.out = 20))) %>%
+  mutate(dist_bin = cut(distance, breaks=seq(0, 4, length.out = 20))) %>% #used to be 20 but in the report they mention 30 binned distances
   group_by(dist_bin) %>%
   summarise(bts, year, temp, chi, distance = mean(distance))  %>%
   group_by(distance, year, temp, bts) %>%
@@ -215,7 +215,7 @@ max_distance <- max(chi_true$distance, na.rm = TRUE)
 
 #summarize is deprecated but this gives me what I want 
 chi_true_summary = chi_true %>%
-  mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 20))) %>%
+  mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 30))) %>% #used to be 20 but in the report they mentioned 30 binned distances
   group_by(dist_bin) %>%
   summarise(year, temp, chi, distance = mean(distance))  %>%
   group_by(distance, year, temp) %>%

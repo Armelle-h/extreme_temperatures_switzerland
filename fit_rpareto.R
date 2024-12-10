@@ -55,7 +55,7 @@ HRD_ll = function(dt, lcs, vr, conditioned.site = 1, zeta, gamma, eta){
   }
   
   summ = apply(omegas, MARGIN = 1, function(x){t(x) %*% inversePsi %*% (x)}) %>% sum
-  length(dt)*detPsi+ summ # LL
+  length(dt)*detPsi+ summ # penalty term + sum of the LL
 }
 
 # negative likelihood function for model fitting for the entire dataset

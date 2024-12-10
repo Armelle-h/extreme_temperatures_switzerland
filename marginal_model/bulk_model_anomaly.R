@@ -4,6 +4,7 @@ gc()
 rm(list = ls())
 library(tidyverse)
 library(evgam)
+library(data.table)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
 num_quantiles = 30
@@ -165,29 +166,34 @@ lambda_thresh_ex %>%
 
 # ------------ get splines on clim scale
 
+num_quantiles = 30
+
 #need to create
 clim_grid = read_csv("Data/Climate_data/clim_scale_grid_gpd_model.csv")%>%
-  filter(id %% 10 == 0)
+  filter(id %% 5 == 0)
 
 
 clim_quantiles_subset = readRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))%>%
-  filter(id %% 10 == 0)
+  filter(id %% 5 == 0)
 
-#don't see the point, unless it is to have more flexibility about which localisation data we're considering
 clim_grid = clim_grid %>%
-  left_join(clim_quantiles_subset)
+  left_join(clim_quantiles_subset, by = "id")
 
 
 #climate data with quantile modified
 clim_date_w_quantile_mod = c()
 
+reduced_temporal_covariates = temporal_covariates %>%
+  filter(year %in% c(1971, 2022))
+
 for(i in seq(nrow(clim_grid))){
-  print(clim_grid[i,]) #for debugging
+  
+  if (i%%100 == 0){print(i)}
   
   # Create data for prediction by merging with temporal covariates
   this_data_for_pred = tibble(year = c(1971, 2022)) %>%
     #one is before observed range, we have the extremes and one is after the observed range
-    left_join(temporal_covariates) %>%
+    left_join(reduced_temporal_covariates, by = "year") %>%
     mutate(id = clim_grid[i,]$id,
            quantile = clim_grid[i,]$quantile,
            value = clim_grid[i,]$value) 
@@ -205,7 +211,7 @@ for(i in seq(nrow(clim_grid))){
     res = rbind(res,
                 tibble(quantile =  qpars$tau,
                        year = this_data_for_pred$year,
-                       quant_value = qpars$beta_0 + qpars$beta_1*clim_vals[q] + (qpars$beta_2)*(temporal_covariates$glob_anom)   ))
+                       quant_value = qpars$beta_0 + qpars$beta_1*clim_vals[q] + (qpars$beta_2)*(this_data_for_pred$glob_anom)   ))
   }
   
   # Fit splines to interpolate between quantile values
@@ -223,14 +229,14 @@ for(i in seq(nrow(clim_grid))){
   # Merge predictions with the grid data
   #quantile mod as now they are estimated using a regression model (no longer empirical quantile)
   clim_date_w_quantile_mod = rbind(clim_date_w_quantile_mod, 
-                                   this_data_for_pred %>% left_join(res))
+                                   this_data_for_pred %>% left_join(res, by = "year"))
   
 }
 
 clim_date_w_quantile_mod %>%
   saveRDS(paste0("output/quant_models_clim_num_quantiles_",num_quantiles,".csv"))
 
-#can stop here as the file is read right below
+#FROM HERE ON 
 
 # threshold at these points 
 
@@ -247,11 +253,12 @@ for (i in seq_along(files)){
   clim_data = fread(files[[i]])
   
   # Calculate the climate threshold values (0.9 quantile of 'maxtp')
-  sing_clim_thresh = clim_dat_full %>%
+  sing_clim_thresh = clim_data %>%
+    filter(id %in% clim_date_w_quantile_mod$id) %>%
     group_by(id) %>%
     summarise(clim_thresh_value_9 = quantile(maxtp, 0.9, na.rm = TRUE))
   
-  clim_thresh_values_list[[i]] = sing_clim_thresh_values
+  clim_thresh_values_list[[i]] = sing_clim_thresh
   
   #to free memory
   rm(clim_data)
@@ -260,6 +267,7 @@ for (i in seq_along(files)){
 }
 
 clim_thresh = do.call(rbind, clim_thresh_values_list)
+rm(clim_thresh_values_list)
 
 # Add the threshold value to the model data
 clim_date_w_quantile_mod = clim_date_w_quantile_mod %>% left_join(clim_thresh)
@@ -278,7 +286,7 @@ lambda_thresh_ex = clim_date_w_quantile_mod %>%
     
     # Create a tibble with exceedance probabilities
     tibble(id = .x$id[1],
-           year = c(1960, 1971, 2023, 2024),
+           year = c(1971, 2022),
            thresh_exceedance_9 = 1-thresh_exceedance_9)# Inverse exceedance probability  
     
   }, .keep = T) %>%
@@ -292,4 +300,4 @@ lambda_thresh_ex %>%
 # Merge lambda results with the main model data and save
 clim_date_w_quantile_mod %>% 
   left_join(lambda_thresh_ex) %>%
-  saveRDS(paste0("output/quant_models_clim_num_quantiles_",num_quantiles,".csv"))
+  saveRDS(paste0("output/quant_models_clim_num_mod_1_quantiles_",num_quantiles,".csv"))

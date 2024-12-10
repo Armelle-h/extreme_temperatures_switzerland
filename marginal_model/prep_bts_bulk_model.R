@@ -226,7 +226,7 @@ covars = obs_data %>%
 
 # i takes values in 1  21  41  61  81 101 121 141 161 181    (need to do 10 times the code below)
 
-i = 121
+i = 181
 
 batch_size = 20
 bts_rng = seq(i,(i+batch_size-1))
