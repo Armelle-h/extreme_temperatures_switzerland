@@ -135,8 +135,6 @@ obs_smoothed_quantiles %>% saveRDS(paste0("output/glob_anomaly_quant_models_num_
 
 #obs_smoothed_quantiles = readRDS(paste0("output/glob_anomaly_quant_models_num_quantiles_",num_quantiles,".csv"))
 
-#I CAN STOP HERE. FOR NOW, DON'T NEED EXCEEDANCE FUNCTION
-
 # Calculate exceedance probability (lambda) for a threshold (threshold_9)
 lambda_thresh_ex = obs_data %>%
   group_by(stn) %>%
@@ -165,16 +163,22 @@ lambda_thresh_ex %>%
 
 
 # ------------ get splines on clim scale
+library(tidyverse)
+library(evgam)
+library(data.table)
+setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
+
+nb_filter = 5
 
 num_quantiles = 30
 
 #need to create
 clim_grid = read_csv("Data/Climate_data/clim_scale_grid_gpd_model.csv")%>%
-  filter(id %% 5 == 0)
+  filter(id %% nb_filter == 0)
 
 
 clim_quantiles_subset = readRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))%>%
-  filter(id %% 5 == 0)
+  filter(id %% nb_filter == 0)
 
 clim_grid = clim_grid %>%
   left_join(clim_quantiles_subset, by = "id")
@@ -211,7 +215,7 @@ for(i in seq(nrow(clim_grid))){
     res = rbind(res,
                 tibble(quantile =  qpars$tau,
                        year = this_data_for_pred$year,
-                       quant_value = qpars$beta_0 + qpars$beta_1*clim_vals[q] + (qpars$beta_2)*(this_data_for_pred$glob_anom)   ))
+                       quant_value = qpars$beta_0 + qpars$beta_1*clim_vals[q] + (qpars$beta_2)*(reduced_temporal_covariates$glob_anom)   ))
   }
   
   # Fit splines to interpolate between quantile values
@@ -250,7 +254,8 @@ clim_thresh_values_list = list()
 
 for (i in seq_along(files)){
   
-  clim_data = fread(files[[i]])
+  clim_data = fread(files[[i]])%>%
+    filter(id %in% clim_date_w_quantile_mod$id )
   
   # Calculate the climate threshold values (0.9 quantile of 'maxtp')
   sing_clim_thresh = clim_data %>%
@@ -295,9 +300,9 @@ lambda_thresh_ex = clim_date_w_quantile_mod %>%
 
 #saving result
 lambda_thresh_ex %>% 
-  write_csv(paste0("Data/processed/climate_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv"))
+  write_csv(paste0("Data/processed/glob_anom_climate_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv"))
 
 # Merge lambda results with the main model data and save
 clim_date_w_quantile_mod %>% 
   left_join(lambda_thresh_ex) %>%
-  saveRDS(paste0("output/quant_models_clim_num_mod_1_quantiles_",num_quantiles,".csv"))
+  saveRDS(paste0("output/glob_anomaly_quant_models_clim_num_mod_1_quantiles_",num_quantiles,".csv"))

@@ -73,7 +73,4 @@ if(file.exists(paste0("output/simulations/rescaled_simulations_on_obs_grid/", tr
   
 tibble(temp = temp_conditioned_on, prop_ex_1971, prop_ex_2022) %>%
   write_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod,"_temp_condtioned_on_",temp_conditioned_on,".csv"))
-  
-#do a scatter plot, x axis the stations, y axis the exceedance for 1971, 2022 with different colors for 1971 and 2022
-
 

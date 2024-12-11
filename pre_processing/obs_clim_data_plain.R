@@ -46,7 +46,8 @@ switzerland <- st_transform(switzerland, crs = 4326)
 ggplot(data = switzerland) +
   geom_sf(fill = "lightblue", color = "black") +  # Plot Switzerland
   geom_sf(data = pts_sf) + 
-  ggtitle("plain vs mountain") +
+#  ggtitle("plain vs mountain") +
+  labs(x = "longitude", y = "latitude") +
   theme_minimal()
 
 legend_filtered <- legend %>%
@@ -123,6 +124,7 @@ write.csv(I_second_try, "Data/plain_id_lon_lat_correspondance.csv", row.names = 
 
 #adding a column to legend_data with latitude and longitude projected, is useful for the rPareto process
 
+#for the observed data
 library(sf)
 library(tidyverse)
 
@@ -138,8 +140,27 @@ proj_cords <- st_transform(my_coords, crs = 32629)
 # Extract the transformed coordinates, expressed in meters
 proj_coords <- st_coordinates(proj_cords) 
 
-# Add projected coordinates and an ID column to clim_data, expressed in kilometers
+# Add projected coordinates and an ID column to obs_data, expressed in kilometers
 legend_data$longitude_proj <- proj_coords[, 1] / 1000
 legend_data$latitude_proj <- proj_coords[, 2] / 1000
 
 write.csv(legend_data, "Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv", row.names = FALSE) #distance will be in kilometers
+
+#for the climate data 
+
+I_plain = read.csv("Data/plain_id_lon_lat_correspondance.csv")
+
+my_coords <- I_plain %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)  # WGS84 (EPSG:4326)
+
+# Transform the coordinates to UTM Zone 29N (EPSG:32629)
+proj_cords <- st_transform(my_coords, crs = 32629)
+
+# Extract the transformed coordinates, expressed in meters
+proj_coords <- st_coordinates(proj_cords) 
+
+# Add projected coordinates and an ID column to clim_data, expressed in kilometers
+I_plain$longitude_proj <- proj_coords[, 1] / 1000
+I_plain$latitude_proj <- proj_coords[, 2] / 1000
+
+write.csv(I_plain, "Data/plain_id_lon_lat_correspondance.csv", row.names = FALSE) #distance will be in kilometers

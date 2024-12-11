@@ -4,6 +4,8 @@
 #Carefull !! Sometimes the covariance matrix is singular because I was considering stations too close to each other. 
 #Should I do some additional preprocessing?
 
+#Should also differenciate in the file name if we fit with robust or not !!!!
+
 rm(list=ls())
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)

@@ -77,7 +77,7 @@ fit_quant_regression = function(bts_range, marg_mod, num_quantiles, zeta_list, o
       quantile_model_fit <- evgam(maxtp ~ value + glob_anom, dat,
                                   family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
       
-      new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2])
+      new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3])
       
       if(q == 1){
         prev_coeff = new_coeff
@@ -100,6 +100,8 @@ fit_quant_regression = function(bts_range, marg_mod, num_quantiles, zeta_list, o
   }
 }
 
+marg_mod = "mod_1"
+
 num_quantiles = 30 
 
 obs_data = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
@@ -121,11 +123,13 @@ rm('glob_anomaly', 'glob_anomaly_reshaped')
 
 #takes 25 minutes 
 
-#then  seq(1, 16, 4) seq(17, 32, 4)   seq(33, 48, 4) seq(49, 64, 4)  seq(65, 80, 4) seq(81, 96, 4) seq(97, 112, 4) seq(113, 128, 4), seq(129, 144, 4) seq(145, 160, 4) seq(161, 176, 4) seq(177, 192, 4) seq(193, 200, 2) seq(200, 200)
-for(i in seq(129, 144, 4)){ 
-  seq_ = seq(i, i+3)
+#then  seq(1, 64, 16) seq(65, 128, 16), seq(129, 192, 16) seq(193, 201, 3)
+for(i in seq(1, 64, 16)){ 
+  seq_ = seq(i, i+15)
   job::job({fit_quant_regression(seq_,  'mod_1', 30, zeta_list, obs_data)}, import = c("fit_quant_regression", "obs_data", "zeta_list", "seq_")) 
 }
+
+fit_quant_regression(list(200), 'mod_1', 30, zeta_list, obs_data)
 
 #job::job({fit_quant_regression(seq(1,1),  'mod_0', 40)}, import = c("fit_quant_regression", "obs_data")) 
 #job::job({fit_quant_regression(seq(1,20),  'mod_1', 40)}) 

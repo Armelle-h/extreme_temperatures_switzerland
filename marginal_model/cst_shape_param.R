@@ -149,9 +149,8 @@ plt_clim = grid_lonlat %>%  #the weird position of the points comes from the fac
 
 obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv") 
 
-threshold_9_df = vroom::vroom("Data/processed/obs_threshold_1971_2022_JJA_obs_data_bulk_model.csv")%>%
-  dplyr::select(obs_threshold, stn)%>%
-  rename(threshold_9 = obs_threshold)%>%
+threshold_9_df = vroom::vroom("Data/processed/1971_2022_JJA_obs_data_bulk_model.csv")%>%
+  dplyr::select(threshold_9, stn)%>%
   unique()
 
 obs_dat = obs_data %>% 
@@ -200,7 +199,7 @@ for(i in obs_grid$stn){
   model_fit = estimate_scale_fixed_shape(this_extm_irel, optimal_shape) 
   loglik_fixed_xi = c(loglik_fixed_xi, model_fit$value)
   
-  if (i %in% c("GIH", "INNEBI", "EMM", "WSLLAE", "INNESF", "PMA", "PERCOR")){
+  if (i %in% c("NAS", "CBS", "ROM", "MAE", "PERGEM", "GEN")){
     # --- free shape
     loglik_free_xi = c(loglik_free_xi, (evd::fpot(this_extm_irel, threshold = 0, std.err = FALSE) %>% logLik %>% as.numeric()))
     std_errors_scale = c(std_errors_scale, NA)
@@ -222,7 +221,7 @@ obs_grid$LL_alt_std_error_scale = std_errors_scale
 obs_grid$LL_alt_std_error_shape = std_errors_shape
 
 
-plt_obs = obs_grid %>%
+obs_grid %>%
   ggplot()+
   geom_point(aes(longitude, latitude, col = LL_ratio), alpha = 0.5, size = 2.5)+ #size = 2.5
   coord_map()+

@@ -138,8 +138,6 @@ obs_smoothed_quantiles %>% saveRDS(paste0("output/plain_glob_anomaly_quant_model
 
 #obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models_num_quantiles_",num_quantiles,".csv"))
 
-#I CAN STOP HERE. FOR NOW, DON'T NEED EXCEEDANCE FUNCTION
-
 # Calculate exceedance probability (lambda) for a threshold (threshold_9)
 lambda_thresh_ex = obs_data %>%
   group_by(stn) %>%

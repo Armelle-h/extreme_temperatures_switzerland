@@ -61,7 +61,8 @@ for (index in c(1, 26, 51, 76)) {
         simulation_score <- simulPareto(n = 2500,
                                       vario_mat = vario_matrix,
                                       nCores = nCores,
-                                      cl = cl)
+                                      cl = cl,
+                                      robust = TRUE)
       
         simulation_score %>%
           saveRDS(paste0(file_name,i))
