@@ -108,7 +108,6 @@ for (i in seq_along(files)){
     left_join(I_date, by = "date_id")%>%
     select(-date_id)
   
-  
   lambda_thresh_ex_reduced = lambda_thresh_ex %>%
     filter(id %in% clim_data$id)
   

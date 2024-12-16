@@ -117,30 +117,17 @@ clim_data_standardised = clim_data %>%  #will have to do a for loop over the cli
 
 #the qq plot ! 
   
-clim_data_standardised$ideal = (clim_data_standardised$maxtp %>% rank(ties.method = "random"))/(nrow(clim_data_standardised)+1) 
-
-library(grid)
-
-gridExtra::grid.arrange(clim_data_standardised %>%
-                          drop_na() %>%
-                          ggplot()+
-                          geom_point(aes(sort(ideal), sort(unif)), size = 0.75)+
-                          geom_abline(col = 'red',linetype = 'longdash')+
-                          geom_vline(xintercept = 0.9)+
-                          theme_minimal(12)+
-                          theme(panel.grid.minor = element_blank(),
-                                axis.title.y = element_blank(),
-                                axis.title.x = element_blank())
-)
+qqplot(qunif(ppoints(length(clim_data_standardised$unif))), sort(clim_data_standardised$unif))
+abline(0, 1, col = "red")
 
 
 rm(clim_smooth)
 
-calc_clim_chi_true = function(yr, tmp, pareto_val){
+calc_clim_chi_true = function(p, pareto_val){
   
   set.seed(123456)
   #number of site pairs to be sampled
-  num_samples = 1000 #turn into 8000 later
+  num_samples = 5000 #turn into 8000 later
   
   sites = read_csv("Data/processed/plain_clim_pairs_with_dist.csv") %>% sample_n(num_samples)
   
@@ -150,10 +137,7 @@ calc_clim_chi_true = function(yr, tmp, pareto_val){
     unique()
   
   #part below will change because we do an empirical estimate and not a simulated one
-  
-  pareto_val_pulled = pareto_val %>% 
-    pull(pareto_marg)
-    
+
   for(s in seq(nrow(sites))){ 
       
       if((s %% 100) == 0){
@@ -164,95 +148,102 @@ calc_clim_chi_true = function(yr, tmp, pareto_val){
       id2 = sites[s,]$V2
 
       #used to have my simulation, not sure if it's still valid
-      id1_exceeds = (unlist(lapply(pareto_val, "[[", which(pareto_val$id == id1))) > pareto_val_pulled[which(pareto_val$id == id1)])
-      id2_exceeds = (unlist(lapply(pareto_val, "[[", which(pareto_val$id == id2))) > pareto_val_pulled[which(pareto_val$id == id2)])
       
-      tibble(sites[s,] %>% mutate(chi =sum(id1_exceeds & id2_exceeds)/sum(id1_exceeds) )) %>%
-        write_csv(paste0("output/simulations/clim_simulation_summary/chi_data_scale_clim_grid_model_yr_",yr, "_conditioned_on_",tmp,".csv"),append = T)
+      id1_exceeds = pareto_val %>% filter(id == id1, pareto_marg >1/(1-p))
+      
+      id1_2_exceeds = pareto_val %>%
+        group_by(date) %>%
+        filter(
+          any(pareto_marg >1/(1-p) & id == id1) &
+            any(pareto_marg >1/(1-p) & id == id2)
+        ) %>%
+        ungroup()
+      
+      tibble(sites[s,] %>% mutate(chi =length(unique(id1_2_exceeds$date))/nrow(id1_exceeds) )) %>%
+        write_csv(paste0("output/simulations/clim_simulation_summary/chi_data_scale_clim_grid_model_conditioned_on_",p,".csv"),append = T)
   }
 }
 
 #20 minutes for 1000 simulations. A bit more than 2 hours for 8000 !!!
 
+#pth marginal quantile of XoP is not 28!!! It is 28oP!!
 
-pareto_val_2022_28 = clim_data_standardised %>% 
-  filter(pareto_marg > 28, year == 2022)%>%
-  select(id, pareto_marg)
+pareto_val = clim_data_standardised %>% 
+  filter(year %in% c(1971, 2022)) %>% 
+  select(id, pareto_marg, date)
 
-pareto_val_2022_29 = clim_data_standardised %>% 
-  filter(pareto_marg > 29, year == 2022)%>%
-  select(id, pareto_marg)
 
-pareto_val_2022_30 = clim_data_standardised %>% 
-  filter(pareto_marg > 30, year == 2022)%>%
-  select(id, pareto_marg)
 
-pareto_val_1971_28 = clim_data_standardised %>% 
-  filter(pareto_marg > 28, year == 1971)%>%
-  select(id, pareto_marg)
-
-pareto_val_1971_29 = clim_data_standardised %>% 
-  filter(pareto_marg > 29, year == 1971)%>%
-  select(id, pareto_marg)
-
-pareto_val_1971_30 = clim_data_standardised %>% 
-  filter(pareto_marg > 30, year == 1971)%>%
-  select(id, pareto_marg)
-
-#rm(clim_data_standardised)
-
-job::job({
-  calc_clim_chi_true(2022, 28, pareto_val_2022_28)
+for (p in c(0.8, 0.85, 0.9)){
   
-}, import = c("pareto_val_2022_28", "calc_clim_chi_true"))
-
-job::job({
-  calc_clim_chi_true(2022, 29, pareto_val_2022_29)
+  job::job({
+    calc_clim_chi_true(p, pareto_val)
+    
+  }, import = c("pareto_val", "calc_clim_chi_true", "p"))
   
-}, import = c("pareto_val_2022_29", "calc_clim_chi_true"))
+}
 
-job::job({
-  calc_clim_chi_true(2022, 30, pareto_val_2022_30)
+chi_file_08 = read_csv(paste0("output/simulations/clim_simulation_summary/chi_data_scale_clim_grid_model_conditioned_on_0.8.csv"), 
+                       col_names = c('s1', 's2', 'distance', 'chi'))
   
-}, import = c("pareto_val_2022_30", "calc_clim_chi_true"))
-
-job::job({
-  calc_clim_chi_true(1971, 28, pareto_val_1971_28)
+chi_file_085 = read_csv(paste0("output/simulations/clim_simulation_summary/chi_data_scale_clim_grid_model_conditioned_on_0.85.csv"), 
+                        col_names = c('s1', 's2', 'distance', 'chi'))
   
-}, import = c("pareto_val_1971_28", "calc_clim_chi_true"))
+chi_file_09 = read_csv(paste0("output/simulations/clim_simulation_summary/chi_data_scale_clim_grid_model_conditioned_on_0.9.csv"), 
+                       col_names = c('s1', 's2', 'distance', 'chi'))
 
-job::job({
-  calc_clim_chi_true(1971, 29, pareto_val_1971_29)
-  
-}, import = c("pareto_val_1971_29", "calc_clim_chi_true"))
+max_distance <- max(chi_file_08$distance, na.rm = TRUE)
 
-job::job({
-  calc_clim_chi_true(1971, 30, pareto_val_1971_30)
-  
-}, import = c("pareto_val_1971_30", "calc_clim_chi_true"))
+chi_true_violin_08 = chi_file_08 %>%
+  mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 30))) %>% #used to be 20 but in the report they mentioned 30 binned distances
+  group_by(dist_bin) %>%
+  summarise(chi, distance = median(distance))  
 
+chi_true_violin_08 %>%
+  ggplot(aes(x = factor(distance), y = chi, fill="blue")) +
+  geom_violin() +
+  #facet_wrap(~ temp, scales = "free") +
+  ylim(0, 1) +
+  theme_minimal()+
+  labs(
+    title = "p = 0.8",
+    x = "Binned Distance",
+    y = "Chi"
+  )
 
+chi_true_violin_085 = chi_file_085 %>%
+  mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 30))) %>% #used to be 20 but in the report they mentioned 30 binned distances
+  group_by(dist_bin) %>%
+  summarise(chi, distance = median(distance))  
 
+chi_true_violin_085 %>%
+  ggplot(aes(x = factor(distance), y = chi, fill="blue")) +
+  geom_violin() +
+  #facet_wrap(~ temp, scales = "free") +
+  ylim(0, 1) +
+  theme_minimal()+
+  labs(
+    title = "p = 0.85",
+    x = "Binned Distance",
+    y = "Chi"
+  )
 
+chi_true_violin_09 = chi_file_09 %>%
+  mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 30))) %>% #used to be 20 but in the report they mentioned 30 binned distances
+  group_by(dist_bin) %>%
+  summarise(chi, distance = median(distance))  
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+chi_true_violin_09 %>%
+  ggplot(aes(x = factor(distance), y = chi, fill="blue")) +
+  geom_violin() +
+  #facet_wrap(~ temp, scales = "free") +
+  ylim(0, 1) +
+  theme_minimal()+
+  labs(
+    title = "p = 0.9",
+    x = "Binned Distance",
+    y = "Chi"
+  )
 
 
 
