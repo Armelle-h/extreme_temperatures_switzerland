@@ -129,7 +129,6 @@ for(i in seq(1, 64, 16)){
   job::job({fit_quant_regression(seq_,  'mod_1', 30, zeta_list, obs_data)}, import = c("fit_quant_regression", "obs_data", "zeta_list", "seq_")) 
 }
 
-fit_quant_regression(list(200), 'mod_1', 30, zeta_list, obs_data)
 
 #job::job({fit_quant_regression(seq(1,1),  'mod_0', 40)}, import = c("fit_quant_regression", "obs_data")) 
 #job::job({fit_quant_regression(seq(1,20),  'mod_1', 40)}) 

@@ -107,6 +107,8 @@ prep_rpareto_true = function(marg_mod){
     ungroup() %>%
     arrange(desc(cost))
   
+  tot_dates =nrow(extreme_dates)
+  
   # get cost threshold
   threshold = quantile(extreme_dates$cost, 0.8) %>% as.numeric   #robust to outliers
   
@@ -114,6 +116,8 @@ prep_rpareto_true = function(marg_mod){
   extreme_dates = extreme_dates %>%
     filter(cost > threshold) %>%
     arrange(desc(cost))
+  
+  cat("cr =", nrow(extreme_dates)*threshold/tot_dates)
   
   # temporally decluster events
   my_data_tmp = extreme_dates %>% arrange(date)

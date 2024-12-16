@@ -148,6 +148,8 @@ calc_chi_bts = function(marg_mod, yr, tmp, bts_seq){
 
 
 # # ------ PLOT MODELS
+
+# For bts
 marg_mod = 'mod_1'
 
 robust = TRUE
@@ -173,7 +175,7 @@ chi_bts = rbind(read_csv(paste0("output/simulations/simulation_summary/bootstrap
                 read_csv(paste0("output/simulations/simulation_summary/bootstrap_chi_data_scale_model_", marg_mod,"_bts_yr_2020_conditioned_on_30.csv"),
                          col_names = c('bts', 's1', 's2', 'distance', 'chi')) %>% mutate(temp = "30°C", year = '2020'))
 
-chi_bts_summety = chi_bts %>%
+chi_bts_summery = chi_bts %>%
   mutate(dist_bin = cut(distance, breaks=seq(0, 4, length.out = 20))) %>% #used to be 20 but in the report they mention 30 binned distances
   group_by(dist_bin) %>%
   summarise(bts, year, temp, chi, distance = mean(distance))  %>%
@@ -184,6 +186,8 @@ chi_bts_summety = chi_bts %>%
   summarise(upper = quantile(mn, 0.975),
             lower = quantile(mn, 0.025))
 
+
+#for not bts
 
 marg_mod = 'mod_1'
 
@@ -217,32 +221,97 @@ max_distance <- max(chi_true$distance, na.rm = TRUE)
 chi_true_summary = chi_true %>%
   mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 30))) %>% #used to be 20 but in the report they mentioned 30 binned distances
   group_by(dist_bin) %>%
-  summarise(year, temp, chi, distance = mean(distance))  %>%
+  summarise(year, temp, chi, distance = median(distance))  %>%
   group_by(distance, year, temp) %>%
   drop_na() %>%
   summarise(mean_chi = mean(chi), median_chi = median(chi))
 
+
+chi_true_violin = chi_true %>%
+  mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 30))) %>% #used to be 20 but in the report they mentioned 30 binned distances
+  group_by(dist_bin) %>%
+  summarise(year, temp, chi, distance = median(distance))  %>%
+  group_by(distance, year, temp) %>%
+  drop_na()
+
+
 chi_true_summary %>%
-  ggplot(aes(x = distance, y = mean_chi)) +
+  ggplot(aes(x = distance, y = median_chi)) +
   geom_point() +
   facet_wrap(~ temp, scales = "free") +
   ylim(0, 1) +
   theme_minimal() +
   labs(title = "Scatter plots of distance vs mean by temperature")
 
+#scatter plot, unbinned distance vs estimate of chi
+
+chi_true %>%
+  filter(temp == "28°C")%>%
+  ggplot(aes(x = distance, y = chi)) +
+  geom_point() +
+  ylim(0, 1) +
+  theme_minimal()+
+  labs(title = "28°C")
+
+chi_true %>%
+  filter(temp == "29°C")%>%
+  ggplot(aes(x = distance, y = chi)) +
+  geom_point() +
+  ylim(0, 1) +
+  theme_minimal()+
+  labs(title = "29°C")
+
+chi_true %>%
+  filter(temp == "30°C")%>%
+  ggplot(aes(x = distance, y = chi)) +
+  geom_point() +
+  ylim(0, 1) +
+  theme_minimal()+
+  labs(title = "30°C")
 
 
-
-#CAN STOP HERE !!!!!
-
+#violin plot of chi for each binned temperature
 
 
+chi_true_violin %>%
+  filter(temp == "28°C")%>%
+  ggplot(aes(x = factor(distance), y = chi, fill = temp)) +
+  geom_violin() +
+  facet_wrap(~ temp, scales = "free") +
+  ylim(0, 1) +
+  theme_minimal() +
+  labs(
+    title = "Violin Plots of Chi by Binned Distance and Temperature",
+    x = "Binned Distance",
+    y = "Chi"
+  )
+
+chi_true_violin %>%
+  filter(temp == "29°C")%>%
+  ggplot(aes(x = factor(distance), y = chi, fill = temp)) +
+  geom_violin() +
+  facet_wrap(~ temp, scales = "free") +
+  ylim(0, 1) +
+  theme_minimal() +
+  labs(
+    title = "Violin Plots of Chi by Binned Distance and Temperature",
+    x = "Binned Distance",
+    y = "Chi"
+  )
 
 
-
-
-
-
+chi_true_violin %>%
+  filter(temp == "30°C")%>%
+  ggplot(aes(x = factor(distance), y = chi, fill = temp)) +
+  geom_violin() +
+  facet_wrap(~ temp, scales = "free") +
+  ylim(0, 1) +
+  theme_minimal() +
+  labs(
+    title = "Violin Plots of Chi by Binned Distance and Temperature",
+    x = "Binned Distance",
+    y = "Chi"
+  )
 
 
 
