@@ -5,18 +5,6 @@ library(tidyverse)
 library(evgam)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
-obs_data = read.csv("Data/processed/plain_1971_2022_JJA_obs_data_bulk_model.csv")
-
-num_quantiles = 30
-
-clim_quantiles_subset = readRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
-
-obs_data = obs_data %>%
-  left_join(clim_quantiles_subset, by = "id") #restriction of clim_quantiles_subset to the plain
-
-obs_data %>%
-  saveRDS(paste0("Data/processed/plain_obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
-
 #if the above has already been run
 
 num_quantiles = 30
@@ -29,8 +17,13 @@ glob_anomaly_reshaped = glob_anomaly %>%
   select(c("year", "JJA"))%>%
   rename(glob_anom = JJA)
 
+legend = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")%>%
+  select(stn, altitude)%>%
+  unique()
+
 obs_data = obs_data %>% 
-  left_join(glob_anomaly_reshaped, by = "year")
+  left_join(glob_anomaly_reshaped, by = "year") %>% 
+  left_join(legend, by = "stn")
 
 # ---- get covariates for prediction
 temporal_covariates = obs_data %>%  #issue, be wary of, glob anom is defined for June July and August so each year is associated with 3 different values
@@ -43,7 +36,7 @@ fit_clim_quants = T # by default, they should've already been computed
 
 if(fit_clim_quants){
   
-  file.remove(paste0("Data/processed/plain_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
+  file.remove(paste0("Data/processed/plain_glob_anom_alt_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"))
   
   # Loop over each quantile and fit the quantile regression model
   for(q in seq_along(quantiles_to_estimate_bulk)){
@@ -60,22 +53,24 @@ if(fit_clim_quants){
     obs_data_for_quant_reg$value = obs_data_for_quant_reg$value %>% lapply(`[[`, q) %>% unlist
     
     if(q==1){
-      inits_coeff = c(-2, 1, 3)
+      inits_coeff = c(30, 0.2, 4, -4)
     }else {
       #to ensure smoothness in the estimated coefficients
       inits_coeff = c(quantile_model_fit$location$coefficients[1],quantile_model_fit$location$coefficients[2],quantile_model_fit$location$coefficients[3])
     }
     
+    
     # Fit the quantile regression model using EVGAM package with asymmetric Laplace distribution
-    quantile_model_fit <- evgam(maxtp ~ value + glob_anom, obs_data_for_quant_reg,
-                                family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
+    quantile_model_fit <- evgam(maxtp ~ value + glob_anom + log(altitude), obs_data_for_quant_reg,
+                                family = "ald", ald.args = list(tau = zeta))
     
     # Save the fitted parameter estimates for each quantile
     tibble(tau = zeta,
            beta_0 = quantile_model_fit$location$coefficients[1],
            beta_1 = quantile_model_fit$location$coefficients[2],
-           beta_2 = quantile_model_fit$location$coefficients[3]) %>%
-      write_csv(paste0("Data/processed/plain_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
+           beta_2 = quantile_model_fit$location$coefficients[3],
+           beta_3 = quantile_model_fit$location$coefficients[4]) %>%
+      write_csv(paste0("Data/processed/plain_glob_anom_alt_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"), append = T)
   }
 }
 
@@ -83,11 +78,10 @@ if(fit_clim_quants){
 #regression coeff were not already computed
 
 # --- read in fitted quantile regression coefficients
-quant_reg_model_pars = read_csv(paste0("Data/processed/plain_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
-                                col_names = c('tau', 'beta_0', 'beta_1', 'beta_2'))
+quant_reg_model_pars = read_csv(paste0("Data/processed/plain_glob_anom_alt_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
+                                col_names = c('tau', 'beta_0', 'beta_1', 'beta_2', 'beta_3'))
 
 # # --- creates a tibble with each station and its quantile model
-
 # For each station, interpolate the quantiles and predict quantile values for each year
 obs_smoothed_quantiles = obs_data %>%
   group_by(stn) %>%
@@ -105,6 +99,9 @@ obs_smoothed_quantiles = obs_data %>%
     quant_reg_pars = quant_reg_model_pars %>%
       arrange(tau)
     
+    altitude_df = obs_data %>% filter(stn == .x$stn[1])%>%pull(altitude)
+    altitude = altitude_df[[1]]
+    
     res = c()
     for(q in seq_along(quantiles_to_estimate_bulk)){
       qpars = quant_reg_pars[q,]
@@ -112,7 +109,7 @@ obs_smoothed_quantiles = obs_data %>%
       res = rbind(res,
                   tibble(quantile =  qpars$tau,
                          year = temporal_covariates$year,
-                         quant_value = qpars$beta_0 + qpars$beta_1*clim_vals[q] + (qpars$beta_2) *(temporal_covariates$glob_anom)))
+                         quant_value = qpars$beta_0 + qpars$beta_1*clim_vals[q] + (qpars$beta_2) *(temporal_covariates$glob_anom)+(qpars$beta_3) *altitude))
     }
     
     print(paste0("Interpolating quantile estimates for ", .x$stn[1]))
@@ -136,11 +133,11 @@ obs_smoothed_quantiles = obs_data %>%
 
 
 # save quantile models
-obs_smoothed_quantiles %>% saveRDS(paste0("output/plain_glob_anomaly_quant_models_num_quantiles_",num_quantiles,".csv"))
+obs_smoothed_quantiles %>% saveRDS(paste0("output/plain_glob_anom_alt_quant_models_num_quantiles_",num_quantiles,".csv"))
 
 #------------------------------------------------------------------------------------------------------------------
 
-#obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models_num_quantiles_",num_quantiles,".csv"))
+#obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anom_alt_quant_models_num_quantiles_",num_quantiles,".csv"))
 
 # Calculate exceedance probability (lambda) for a threshold (threshold_9)
 lambda_thresh_ex = obs_data %>%
@@ -166,7 +163,7 @@ lambda_thresh_ex = obs_data %>%
 
 
 lambda_thresh_ex %>%
-  write_csv(paste0("Data/processed/plain_glob_anomaly_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv"))
+  write_csv(paste0("Data/processed/plain_glob_anom_alt_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv"))
 
 
 # ------------ get splines on clim scale
@@ -193,7 +190,7 @@ temporal_covariates = glob_anomaly %>%
 
 quantiles_to_estimate_bulk = seq(0.001,0.99,length.out = num_quantiles)
 
-quant_reg_model_pars = read_csv(paste0("Data/processed/plain_glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
+quant_reg_model_pars = read_csv(paste0("Data/processed/plain_glob_anom_alt_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
                                 col_names = c('tau', 'beta_0', 'beta_1', 'beta_2'))
 
 #need to create
@@ -260,10 +257,10 @@ for(i in seq(nrow(clim_grid))){
 }
 
 clim_date_w_quantile_mod %>%
-  saveRDS(paste0("output/plain_glob_anomaly_quant_models_clim_num_quantiles_",num_quantiles,".csv"))
+  saveRDS(paste0("output/plain_glob_anom_alt_quant_models_clim_num_quantiles_",num_quantiles,".csv"))
 
 quantile_model_fit_9 = readRDS("output/plain_threshold_model_9")
-clim_date_w_quantile_mod = readRDS(paste0("output/plain_glob_anomaly_quant_models_clim_num_quantiles_",num_quantiles,".csv"))
+clim_date_w_quantile_mod = readRDS(paste0("output/plain_glob_anom_alt_quant_models_clim_num_quantiles_",num_quantiles,".csv"))
 
 #loop over my climate data files
 
@@ -318,9 +315,9 @@ lambda_thresh_ex = clim_date_w_quantile_mod %>%
 
 #saving result
 lambda_thresh_ex %>% 
-  write_csv(paste0("Data/processed/plain_climate_glob_anomaly_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv"))
+  write_csv(paste0("Data/processed/plain_climate_glob_anom_alt_thresh_exceedance_lambda_num_quantiles_",num_quantiles,".csv"))
 
 # Merge lambda results with the main model data and save
 clim_date_w_quantile_mod %>% 
   left_join(lambda_thresh_ex) %>%
-  saveRDS(paste0("output/plain_glob_anomaly_quant_models_clim_num_quantiles_",num_quantiles,".csv"))
+  saveRDS(paste0("output/plain_glob_anom_alt_quant_models_clim_num_quantiles_",num_quantiles,".csv"))

@@ -227,11 +227,11 @@ scales_9 <- c(result_1$scales_, result_2$scales_, result_3$scales_, result_4$sca
 
 #end of new version
 
-saveRDS(loglik_optimal_shape, "Data/clim_data_gpd_model/temp_025_plain_loglik_optimal_shape.rds") #loglikelihood computed for all indexes 
+saveRDS(loglik_optimal_shape, "Data/clim_data_gpd_model/plain_loglik_optimal_shape_025.rds") #loglikelihood computed for all indexes 
 
-saveRDS(scales_9, "Data/clim_data_gpd_model/temp_025_plain_scales_9.rds")
+saveRDS(scales_9, "Data/clim_data_gpd_model/plain_scales_9_025.rds")
 
-scales_9 = readRDS("Data/clim_data_gpd_model/temp_025_plain_scales_9.rds")
+scales_9 = readRDS("Data/clim_data_gpd_model/plain_scales_9_025.rds")
 
 # --- save estimates on climate grid
 
@@ -240,9 +240,9 @@ clim_data_extreme_9 %>%
   dplyr::select(id) %>%
   unique() %>%
   mutate(scale_9 = scales_9) %>%
-  write_csv("Data/Climate_data/temp_025_plain_clim_scale_grid_gpd_model.csv")
+  write_csv("Data/Climate_data/plain_clim_scale_grid_gpd_model_025.csv")
 
-C = read.csv("Data/Climate_data/temp_025_plain_clim_scale_grid_gpd_model.csv")
+C = read.csv("Data/Climate_data/plain_clim_scale_grid_gpd_model_025.csv")
 
 obs_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_data_loc_id.csv")
 
@@ -259,4 +259,4 @@ obs_sites = obs_sites %>%
 
 obs_data %>%
   left_join(obs_sites) %>% 
-  write_csv("Data/Observed_data/temp_025_plain_obs_data_gpd_model.csv")
+  write_csv("Data/Observed_data/plain_obs_data_gpd_model_025.csv")

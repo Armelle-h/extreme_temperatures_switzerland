@@ -11,11 +11,8 @@
 gc()
 rm(list = ls())
 library(tidyverse)
-library(vroom)
 library(evgam)
-library(mgcv)
 library(data.table)
-library(raster) # package for netcdf manipulation
 
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 

@@ -165,7 +165,8 @@ rm(clim_data_extreme_9_list)
 rm(sing_clim_data_extreme_9)
 
 #to have the scale parameter associated
-scales_9_df = read.csv("Data/Climate_data/temp_025_plain_clim_scale_grid_gpd_model.csv")
+#scales_9_df = read.csv("Data/Climate_data/temp_025_plain_clim_scale_grid_gpd_model.csv")
+scales_9_df = read.csv("Data/Climate_data/plain_clim_scale_grid_gpd_model.csv")
 
 shape_9 = -0.25
 
