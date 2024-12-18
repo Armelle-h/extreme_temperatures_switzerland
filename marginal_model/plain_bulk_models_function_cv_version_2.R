@@ -59,7 +59,7 @@ total_mae_quantile <- function(df, quantiles_to_estimate){
       mae = calculate_mae(unlist(quantile_estimate), quantiles_to_estimate)
     ) %>%
     ungroup()
- 
+  
   return(mean(results$mae, na.rm = TRUE)) #NOT OPTIONAL AS EMPIRICAL ARE NOT DEFINED FOR ALL STN YEAR PAIR
 }
 
@@ -99,13 +99,6 @@ regression <- function(qpars, q, clim_vals, model_name, temporal_covariates, alt
   return(result)
 }
 
-intercept = function(array){ #if the regression model depends only on the intercept, return TRUE (this is a scenario we want to avoid)
-  if (array[[1]]>10^(-3) & array[[2]]<10^(-3)  & array[[3]]<10^(-3) & array[[4]]<10^(-3) ){
-    return (TRUE)
-  } else{
-    return(FALSE)
-  }
-}
 
 estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name){ #model_name describes which bulk model are we computing results for
   
@@ -141,117 +134,64 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
     
     if (model_name == "quant"){
       # Fit the quantile regression model using EVGAM package with asymmetric Laplace distribution
-      if(q == 1){
-        
-        quantile_model_fit <- evgam(maxtp ~ value, obs_data_for_quant_reg,
-                                    family = "ald", ald.args = list(tau = zeta))
-        
-        new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2])
+      if(q==1){
+        inits_coeff = c(-1, 1)
+      }else {
+        #to ensure smoothness in the estimated coefficients
+        inits_coeff = c(quantile_model_fit$location$coefficients[1],quantile_model_fit$location$coefficients[2])
       }
       
-      if (q>1){
-        
-        quantile_model_fit <- evgam(maxtp ~ value, obs_data_for_quant_reg,
-                                    family = "ald", inits = prev_coeff ,ald.args = list(tau = zeta))
-        
-        new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2])
-        
-        i = 0
-        
-        while (max(abs(prev_coeff-new_coeff))>3 & i<3){ #should check what bound would be good
-          
-          i = i+1
-          
-          inits_coeff = runif(2, min = -1, max = 1)
-          quantile_model_fit <- evgam(maxtp ~ value, obs_data_for_quant_reg,
-                                      family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
-          
-          new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2])
-        }
-        if (i==3){new_coeff = prev_coeff}
-      }
+      quantile_model_fit <- evgam(maxtp ~ value, obs_data_for_quant_reg,
+                                  family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
       
       # Save the fitted parameter estimates for each quantile
       result = tibble(tau = zeta,
-                      beta_0 = new_coeff[1],
-                      beta_1 = new_coeff[2])
-      
-      prev_coeff = new_coeff
+                      beta_0 = quantile_model_fit$location$coefficients[1],
+                      beta_1 = quantile_model_fit$location$coefficients[2])
     }
     
     if (model_name == "quant_glob_anom"){
       
       # Fit the quantile regression model using EVGAM package with asymmetric Laplace distribution
-      
-      if(q == 1){
-        quantile_model_fit <- evgam(maxtp ~ value + glob_anom, obs_data_for_quant_reg,
-                                    family = "ald", ald.args = list(tau = zeta))
-        
-        new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3])
+      if(q==1){
+        inits_coeff = c(-2, 1, 3)
+      }else {
+        #to ensure smoothness in the estimated coefficients
+        inits_coeff = c(quantile_model_fit$location$coefficients[1],quantile_model_fit$location$coefficients[2],quantile_model_fit$location$coefficients[3])
       }
       
-      if (q>1){
-        quantile_model_fit <- evgam(maxtp ~ value + glob_anom, obs_data_for_quant_reg,
-                                    family = "ald", inits = prev_coeff ,ald.args = list(tau = zeta))
-        
-        new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3])
-        
-        i=0
-        
-        while (max(abs(prev_coeff-new_coeff))>2 & i<3){
-          i=i+1
-          inits_coeff = runif(3, min = -5, max = 5)
-          quantile_model_fit <- evgam(maxtp ~ value + glob_anom, obs_data_for_quant_reg,
-                                      family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
-          
-          new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3])
-        }
-        if (i==3){new_coeff = prev_coeff}
-      }
+      quantile_model_fit <- fit_with_warning_handling(obs_data_for_quant_reg, zeta, inits_coeff)
+      
+      #evgam(maxtp ~ value + glob_anom, obs_data_for_quant_reg,
+      #                          family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
       
       # Save the fitted parameter estimates for each quantile
       result = tibble(tau = zeta,
-                      beta_0 = new_coeff[1],
-                      beta_1 = new_coeff[2],
-                      beta_2 = new_coeff[3])
-      prev_coeff = new_coeff
+                      beta_0 = quantile_model_fit$location$coefficients[1],
+                      beta_1 = quantile_model_fit$location$coefficients[2],
+                      beta_2 = quantile_model_fit$location$coefficients[3])
     }
     
     if (model_name == "quant_log_alt"){
       # Fit the quantile regression model using EVGAM package with asymmetric Laplace distribution
       
-      if(q == 1){
-        quantile_model_fit <- evgam(maxtp ~ value + glob_anom + log(altitude), obs_data_for_quant_reg,
-                                    family = "ald", ald.args = list(tau = zeta))
-        
-        new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3], quantile_model_fit$location$coefficients[4])
+      if(q==1){
+        inits_coeff = c(1,1,1,1)
+      }else {
+        #to ensure smoothness in the estimated coefficients
+        inits_coeff = c(quantile_model_fit$location$coefficients[1],quantile_model_fit$location$coefficients[2],quantile_model_fit$location$coefficients[3])
       }
       
-      if (q>1){
-        quantile_model_fit <- evgam(maxtp ~ value + glob_anom + log(altitude), obs_data_for_quant_reg,
-                                    family = "ald", inits = prev_coeff ,ald.args = list(tau = zeta))
-        
-        new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3], quantile_model_fit$location$coefficients[4])
-        
-        i=0
-        while ((max(abs(prev_coeff-new_coeff))>4 | intercept(new_coeff)) & i<3) { #should check what bound would be good
-          i=i+1
-          inits_coeff = runif(4, min = -5, max = 5)
-          quantile_model_fit <- evgam(maxtp ~ value + glob_anom + log(altitude), obs_data_for_quant_reg,
-                                      family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
-          
-          new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3], quantile_model_fit$location$coefficients[4])
-        }
-        if (i==3){new_coeff = prev_coeff}
-      }
+      
+      quantile_model_fit <- evgam(maxtp ~ value + glob_anom + log(altitude), obs_data_for_quant_reg,
+                                  family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
       
       # Save the fitted parameter estimates for each quantile
       result = tibble(tau = zeta,
-                      beta_0 = new_coeff[1],
-                      beta_1 = new_coeff[2],
-                      beta_2 = new_coeff[3],
-                      beta_3 = new_coeff[4])
-      prev_coeff = new_coeff
+                      beta_0 = quantile_model_fit$location$coefficients[1],
+                      beta_1 = quantile_model_fit$location$coefficients[2],
+                      beta_2 = quantile_model_fit$location$coefficients[3],
+                      beta_3 = quantile_model_fit$location$coefficients[4])
     }
     results_df = bind_rows(results_df, result) 
   }
@@ -307,8 +247,6 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
       }
       
       
-      #print(paste0("Interpolating quantile estimates for ", .x$stn[1]))
-      
       # interpolate quantiles over tau for each year
       res %>%
         group_by(year) %>%
@@ -349,7 +287,7 @@ estimate_RMSE <- function (fitting_quantiles, obs_data, model_name, quantiles_to
 }
 
 extract_quantile = function(df, obs_smoothed_quantiles){
- 
+  
   result <- df %>%
     inner_join(obs_smoothed_quantiles, by = c("year", "stn")) %>%
     rowwise() %>%
@@ -359,7 +297,7 @@ extract_quantile = function(df, obs_smoothed_quantiles){
     select(stn, year, quantile_estimate)
   
   return(result)
-
+  
 }
 
 estimate <- function (fitting_quantiles, obs_data, model_name, quantiles_to_estimate, test_data){

@@ -128,6 +128,16 @@ run_cv = function(cv_method, obs_data, fitting_quantiles, model_name, quantiles_
                     file = paste0("output/cv_bulk_models/plain_rmse_spatio_temporal_cv.csv"), 
                     sep=",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE     
         )
+        
+        write.table(paste0(model_name, ",", result[3], ",", mean(t)), 
+                    file = paste0("output/cv_bulk_models/plain_quantile_mae_spatio_temporal_cv.csv"), 
+                    sep=",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE     
+        )
+        
+        write.table(paste0(model_name, ",", result[4], ",", mean(t)), 
+                    file = paste0("output/cv_bulk_models/plain_quantile_rmse_spatio_temporal_cv.csv"), 
+                    sep=",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE     
+        )
       }
     }
   }
@@ -157,12 +167,22 @@ run_cv = function(cv_method, obs_data, fitting_quantiles, model_name, quantiles_
                   sep=",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE     
       )
       
+      write.table(paste0(model_name, ",", result[3]), 
+                  file = paste0("output/cv_bulk_models/plain_quantile_mae_twelve_fold_cv.csv"), 
+                  sep=",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE     
+      )
+      
+      write.table(paste0(model_name, ",", result[4]), 
+                  file = paste0("output/cv_bulk_models/plain_quantile_rmse_twelve_fold_cv.csv"), 
+                  sep=",", append = TRUE, quote = FALSE, col.names = FALSE, row.names = FALSE     
+      )
+      
     }
   }
 }
 
 
-job::job({run_cv("10fold", obs_data%>% select(-c(altitude, glob_anom, week, temporal_fold)), fitting_quantiles, "quant", quantiles_to_estimate)})  #1h29
+job::job({run_cv("10fold", obs_data%>% select(-c(altitude, glob_anom, week, temporal_fold)), fitting_quantiles, "quant", quantiles_to_estimate)})  #36 minutes
 job::job({run_cv("10fold", obs_data%>% select(-c(altitude, week, temporal_fold)), fitting_quantiles, "quant_glob_anom", quantiles_to_estimate)}) #1h32
 job::job({run_cv("10fold", obs_data%>% select(-c(week, temporal_fold)), fitting_quantiles, "quant_log_alt", quantiles_to_estimate)}) #1h50
 #in total, the 4 jobs take 1h10 to run  --> expected 2h20
@@ -174,23 +194,39 @@ job::job({run_cv("spatial-temporal", obs_data, fitting_quantiles, "quant_log_alt
 
 #computing the mean 
 
-file_12fols_mae = read_csv("output/cv_bulk_models/plain_mae_twelve_fold_cv.csv",
+file_12folds_mae = read_csv("output/cv_bulk_models/plain_mae_twelve_fold_cv.csv",
                            col_names=c("model_name", "mae"))
 
-file_12fols_rmse = read_csv("output/cv_bulk_models/plain_rmse_twelve_fold_cv.csv",
+file_12folds_rmse = read_csv("output/cv_bulk_models/plain_rmse_twelve_fold_cv.csv",
+                            col_names=c("model_name", "rmse"))
+
+file_12folds_mae_quantile = read_csv("output/cv_bulk_models/plain_quantile_mae_twelve_fold_cv.csv",
+                           col_names=c("model_name", "mae"))
+
+file_12folds_rmse_quantile = read_csv("output/cv_bulk_models/plain_quantile_rmse_twelve_fold_cv.csv",
                             col_names=c("model_name", "rmse"))
 
 
-mean_12fold_mae = file_12fols_mae %>%
+mean_12fold_mae = file_12folds_mae %>%
   group_by(model_name) %>%
   summarise(mean_MAE = mean(mae, na.rm = TRUE))
 
-mean_12fold_rmse = file_12fols_rmse %>%
+mean_12fold_rmse = file_12folds_rmse %>%
+  group_by(model_name) %>%
+  summarise(mean_RMSE = mean(rmse, na.rm = TRUE))
+
+mean_12fold_mae_quantile = file_12folds_mae_quantile %>%
+  group_by(model_name) %>%
+  summarise(mean_MAE = mean(mae, na.rm = TRUE))
+
+mean_12fold_rmse_quantile = file_12folds_rmse_quantile %>%
   group_by(model_name) %>%
   summarise(mean_RMSE = mean(rmse, na.rm = TRUE))
 
 mean_12_fold = mean_12fold_mae %>%
-  left_join(mean_12fold_rmse, by="model_name") 
+  left_join(mean_12fold_rmse, by="model_name") %>%
+  left_join(mean_12fold_mae_quantile, by="model_name") %>%
+  left_join(mean_12fold_rmse_quantile, by="model_name") 
 
 
 

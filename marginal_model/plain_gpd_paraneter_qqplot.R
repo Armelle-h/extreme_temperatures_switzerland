@@ -13,7 +13,7 @@ fit_uncorrected_models = T
 fit_true_models = T
 
 #observed data that has exceeded the threshold
-obs_data = vroom::vroom("Data/Observed_data/temp_025_plain_obs_data_gpd_model.csv")   #vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model.csv")
+obs_data = vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model_025.csv")   #vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model.csv")
 
 legend_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")
 
@@ -55,19 +55,10 @@ if(fit_true_models){
     mutate(excess = maxtp - threshold_9) %>%
     filter(excess > 0)
   
-  #fit and save model 0, 1, 2  #you fit on the OBSERVED data. So enough to have altitude info only on the observed points :)
-  
-  #reminder: scale_9 is the scaling parameter of the climate model (computed in clim_data_gpd_model)
-  
-  #ONLY DONE FOR MODEL 1
-  
-  #need to find good initial parameters
-  
   fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_9,
             extreme_dat_true$glob_anom, c(0.6, 0.03, 0.4, -0.2))  %>%
     matrix() %>% t() %>% as.data.frame() %>%
-    write_csv("output/gpd_model_fits/temp_025_plain_model_1_true.csv")
-  
+    write_csv("output/gpd_model_fits/plain_model_1_true_025.csv")
 }
 
 #THE QQPLOT
@@ -77,7 +68,7 @@ obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models_
 
 marg_mod = 'mod_1'
 
-this_fit_mod = read_csv("output/gpd_model_fits/temp_025_plain_model_1_true.csv") %>%
+this_fit_mod = read_csv("output/gpd_model_fits/plain_model_1_true_025.csv") %>%
   unlist() %>% as.numeric
 
 pred <- my_predict_1(this_fit_mod, obs_data$scale_9, obs_data$glob_anom) #change according to model !!!!!!!!!!
