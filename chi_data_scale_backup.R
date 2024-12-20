@@ -58,6 +58,9 @@ calc_chi_true = function(marg_mod, yr, tmp, nu_name, robust=FALSE){
 
 #20 minutes for 1000 simulations. A bit more than 2 hours for 8000 !!!
 
+#30, 29, 28 correspond to the 0.8, 0.85 and 0.9 marginal quantile of the observed data.
+
+
 #for switzerland, we should have 27, 28 and 29 degrees
 job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 30, nu_name = "015", robust = TRUE)})
 job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 29, nu_name = "015", robust = TRUE)})
@@ -67,16 +70,124 @@ job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 30, nu_name = "015"
 job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 29, nu_name = "015", robust = TRUE)})
 job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 28, nu_name = "015", robust = TRUE)})
 
-#for switzerland, we should have 27, 28 and 29 degrees
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 2022, tmp = 30, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 2022, tmp = 29, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 2022, tmp = 28, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 1971, tmp = 30, nu_name = "015", robust = TRUE)})
 
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 1971, tmp = 29, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 1971, tmp = 28, nu_name = "015", robust = TRUE)})
+
+# job::job({calc_chi_true(marg_mod = "mod_2", yr = 2022, tmp = 30)})
+# job::job({calc_chi_true(marg_mod = "mod_2", yr = 2022, tmp = 29)})
+# job::job({calc_chi_true(marg_mod = "mod_2", yr = 2022, tmp = 28)})
+# job::job({calc_chi_true(marg_mod = "mod_2", yr = 1971, tmp = 30)})
+# job::job({calc_chi_true(marg_mod = "mod_2", yr = 1971, tmp = 29)})
+# job::job({calc_chi_true(marg_mod = "mod_2", yr = 1971, tmp = 28)})
+
+
+#for later
+calc_chi_bts = function(marg_mod, yr, tmp, bts_seq){
+  num_samples = 500 -- #used to be 8000, but in the report mentioned 500
+    set.seed(123456)
+  
+  sites = read_csv("data/processed/obs_pairs_with_dist.csv") %>% sample_n(num_samples)
+  
+  obs_sites = read_csv("data/processed/obs_data.csv") %>%
+    dplyr::select(stn, Long.projected, Lat.projected) %>%
+    unique() %>%
+    left_join(read_csv("data/processed/obs_data_dist_to_sea.csv") %>% dplyr::select(stn, dist_sea))
+  
+  grid_simulated = as.data.frame(read_csv("data/processed/obs_grid_simulated_on.csv")) %>%
+    left_join(obs_sites) %>% as.tibble()
+  
+  
+  for(bts in bts_seq){
+    print("new bootstrap ... ")
+    print(bts)
+    
+    if(file.exists(paste0("output/simulations/rescaled_simulations_on_obs_grid/bootstraps/bootstrap_",bts ,"_model_", marg_mod,"_yr_", yr,"_min_temp_conditioned_on_", tmp))){
+      
+      print("yay bts")
+      frechet_val = grid_simulated %>%
+        left_join(read_csv(paste0("output/extreme_frechet_values_bts/obs_sites_extreme_temps_bootstraps_frechet_scale_", marg_mod,"_bts_", bts ,".csv"),
+                           col_names = c('year', 'stn', 'bts', 'temp', 'frechet_value')) %>% filter(temp == tmp, year == yr)) %>%
+        pull(frechet_value)
+      
+      my_simulations = readRDS(paste0("output/simulations/rescaled_simulations_on_obs_grid/bootstraps/bootstrap_",bts ,"_model_", marg_mod,"_yr_", yr,"_min_temp_conditioned_on_", tmp))
+      
+      for(s in seq(nrow(sites))){
+        
+        id1 = sites[s,]$V1
+        id2 = sites[s,]$V2
+        
+        # ---- to get all sims at loc with id v1 ---> unlist(lapply(my_simulations, "[[", sites[s,]$V1))
+        id1_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id1))) > frechet_val[which(grid_simulated$stn == id1)])
+        id2_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id2))) > frechet_val[which(grid_simulated$stn == id2)])
+        
+        
+        tibble(bts = bts, sites[s,] %>% mutate(chi =sum(id1_exceeds & id2_exceeds)/sum(id1_exceeds) )) %>%
+          write_csv(paste0("output/simulations/simulation_summary/bootstrap_chi_data_scale_model_",marg_mod,"_bts_yr_",yr, "_conditioned_on_",tmp, ".csv"),append = T)
+      }
+    }
+  }
+}
+
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2022, tmp = 30, bts_seq = seq(1,100))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2022, tmp = 30, bts_seq = seq(101,200))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2022, tmp = 30, bts_seq = seq(201,300))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2022, tmp = 29, bts_seq = seq(1,100))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2022, tmp = 29, bts_seq = seq(101,200))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2022, tmp = 29, bts_seq = seq(201,300))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2022, tmp = 28, bts_seq = seq(1,100))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2022, tmp = 28, bts_seq = seq(101,200))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 2022, tmp = 28, bts_seq = seq(201,300))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 1971, tmp = 30, bts_seq = seq(1,100))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 1971, tmp = 30, bts_seq = seq(101,200))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 1971, tmp = 30, bts_seq = seq(201,300))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 1971, tmp = 29, bts_seq = seq(1,100))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 1971, tmp = 29, bts_seq = seq(101,200))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 1971, tmp = 29, bts_seq = seq(201,300))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 1971, tmp = 28, bts_seq = seq(1,100))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 1971, tmp = 28, bts_seq = seq(101,200))})
+# job::job({calc_chi_bts(marg_mod = "mod_2", yr = 1971, tmp = 28, bts_seq = seq(201,300))})
+
 
 # # ------ PLOT MODELS
+
+# For bts
+marg_mod = 'mod_1'
+
+robust = TRUE
+
+if (robust == TRUE){
+  true_folder = "true_robust"
+} else{
+  true_folder = "true"
+}
+
+nu_name = "015"
+
+chi_bts = rbind(read_csv(paste0("output/simulations/simulation_summary/bootstrap_chi_data_scale_model_", marg_mod,"_bts_yr_1971_conditioned_on_28.csv"),
+                         col_names = c('bts', 's1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '1971'),
+                read_csv(paste0("output/simulations/simulation_summary/bootstrap_chi_data_scale_model_", marg_mod,"_bts_yr_1971_conditioned_on_29.csv"),
+                         col_names = c('bts', 's1', 's2', 'distance', 'chi')) %>% mutate(temp = "29°C", year = '1971'),
+                read_csv(paste0("output/simulations/simulation_summary/bootstrap_chi_data_scale_model_", marg_mod,"_bts_yr_1971_conditioned_on_30.csv"),
+                         col_names = c('bts', 's1', 's2', 'distance', 'chi')) %>% mutate(temp = "30°C", year = '1971'),
+                read_csv(paste0("output/simulations/simulation_summary/bootstrap_chi_data_scale_model_", marg_mod,"_bts_yr_2022_conditioned_on_28.csv"),
+                         col_names = c('bts', 's1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '2022'),
+                read_csv(paste0("output/simulations/simulation_summary/bootstrap_chi_data_scale_model_", marg_mod,"_bts_yr_2022_conditioned_on_29.csv"),
+                         col_names = c('bts', 's1', 's2', 'distance', 'chi')) %>% mutate(temp = "29°C", year = '2022'),
+                read_csv(paste0("output/simulations/simulation_summary/bootstrap_chi_data_scale_model_", marg_mod,"_bts_yr_2022_conditioned_on_30.csv"),
+                         col_names = c('bts', 's1', 's2', 'distance', 'chi')) %>% mutate(temp = "30°C", year = '2022'))
+
+chi_bts_summery = chi_bts %>%
+  mutate(dist_bin = cut(distance, breaks=seq(0, 4, length.out = 20))) %>% #used to be 20 but in the report they mention 30 binned distances
+  group_by(dist_bin) %>%
+  summarise(bts, year, temp, chi, distance = mean(distance))  %>%
+  group_by(distance, year, temp, bts) %>%
+  drop_na() %>%
+  summarise(mn = mean(chi)) %>%
+  group_by(distance, year, temp)  %>%
+  summarise(upper = quantile(mn, 0.975),
+            lower = quantile(mn, 0.025))
+
+
+#for not bts
 
 marg_mod = 'mod_1'
 
@@ -253,7 +364,7 @@ chi_true_summary = true_data %>%
   drop_na() %>%
   summarise(mn = median(chi))
 
-#don't understand what dat_for_rat isused for
+
 dat_for_rat = chi_true_summary %>%
   ungroup() %>%
   filter(distance < 1.16*4/max_distance, distance > 1*4/max_distance) %>%
@@ -267,7 +378,7 @@ dat_for_rat[dat_for_rat$year == 2022 & dat_for_rat$temp == "30°C",]$mn/dat_for_
 #corresponds to figure 7 in the paper
 
 ggplot(data = chi_true_summary, 
-              aes(x = distance, y = mn, col = year, linetype = year)) +
+       aes(x = distance, y = mn, col = year, linetype = year)) +
   geom_smooth(se = FALSE) + 
   facet_grid(lab ~ temp, scales = 'free') +
   labs(x = "Distance (km)",

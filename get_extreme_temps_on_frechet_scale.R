@@ -4,12 +4,12 @@ library(tidyverse)
 
 num_quantiles = 30
 
-marg_mod = "mod_1"
+marg_mod = "mod_0"
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 source('marginal_model/gpd_models.R')
 
 #all stations are associated with a value
-obs_sites = read_csv("Data/Observed_data/plain_obs_data_gpd_model.csv") %>%
+obs_sites = read_csv("Data/Observed_data/plain_obs_data_gpd_model_025.csv") %>%
   dplyr::select(stn, scale_9) %>%
   unique()
 
@@ -31,22 +31,21 @@ glob_anomaly_reshaped = glob_anomaly %>%
 obs_grid = lambda_df %>% 
   left_join(obs_sites, by = "stn") %>%
   left_join(glob_anomaly_reshaped, by = "year") %>%
-  left_join(threshold_9_df, by="stn")%>%
-  filter(! (stn %in% c("WSLBTB", "WSLHOB")))
+  left_join(threshold_9_df, by="stn")
 
 #only doing for 2 models
 
 if(marg_mod == "mod_0"){
   # ----- model 0
-  obs_grid$scale = my_predict_0(as.numeric(unlist(read_csv("output/gpd_model_fits/model_0_true.csv"))), obs_grid$scale_9)$scale
-  obs_grid$shape = my_predict_0(as.numeric(unlist(read_csv("output/gpd_model_fits/model_0_true.csv"))), obs_grid$scale_9)$shape
+  obs_grid$scale = my_predict_0(as.numeric(unlist(read_csv("output/gpd_model_fits/plain_model_0_true_025.csv"))), obs_grid$scale_9)$scale
+  obs_grid$shape = my_predict_0(as.numeric(unlist(read_csv("output/gpd_model_fits/plain_model_0_true_025.csv"))), obs_grid$scale_9)$shape
 }else if(marg_mod == "mod_1"){
   # # ----- model 1
-  obs_grid$scale = my_predict_1(as.numeric(unlist(read_csv("output/gpd_model_fits/model_1_true.csv"))), obs_grid$scale_9, obs_grid$glob_anom)$scale
-  obs_grid$shape = my_predict_1(as.numeric(unlist(read_csv("output/gpd_model_fits/model_1_true.csv"))), obs_grid$scale_9, obs_grid$glob_anom)$shape
+  obs_grid$scale = my_predict_1(as.numeric(unlist(read_csv("output/gpd_model_fits/plain_model_1_true_025.csv"))), obs_grid$scale_9, obs_grid$glob_anom)$scale
+  obs_grid$shape = my_predict_1(as.numeric(unlist(read_csv("output/gpd_model_fits/plain_model_1_true_025.csv"))), obs_grid$scale_9, obs_grid$glob_anom)$shape
 }
 
-extreme_temps = seq(25, 38, by = 0.25)  #defined such that tmp in extreme temps will exceed threshold_9
+extreme_temps = seq(30, 46, by = 0.25)  #converting values of interest to their frechet and pareto scale depending on location and time
 
 res_frechet = c()
 res_pareto = c()
@@ -107,19 +106,28 @@ clim_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models
 clim_grid = read.csv("Data/Climate_data/plain_clim_scale_grid_gpd_model.csv")%>%
   filter(id %% 10 == 0)
 
-marg_mod = "mod_1"
-
 clim_grid = clim_grid %>%
   left_join(clim_smoothed_quantiles %>%
               dplyr::select(id, glob_anom, tau_to_temp, threshold_9, thresh_exceedance_9, year), by = "id")
 
-this_fit_mod = read_csv("output/gpd_model_fits/model_1_true.csv") %>%
+if(marg_mod == "mod_1"){
+  
+this_fit_mod = read_csv("output/gpd_model_fits/plain_model_1_true_025.csv") %>%
   unlist() %>% as.numeric
 clim_grid$shape = this_fit_mod[length(this_fit_mod)]
 clim_grid$scale = my_predict_1(this_fit_mod, clim_grid$scale_9, clim_grid$glob_anom)$scale
 
+}
+if(marg_mod == "mod_0"){
+  
+  this_fit_mod = read_csv("output/gpd_model_fits/plain_model_0_true_025.csv") %>%
+    unlist() %>% as.numeric
+  clim_grid$shape = this_fit_mod[length(this_fit_mod)]
+  clim_grid$scale = my_predict_0(this_fit_mod, clim_grid$scale_9)$scale
+  
+}
 
-extreme_temps = seq(22, 36, by = 0.25)  #used to be seq(26, 36, by = 0.25)  | no clue, would have to read the theory on Pareto processes
+extreme_temps = seq(30, 46, by = 0.25)
 
 res_frechet = c()
 res_pareto = c()

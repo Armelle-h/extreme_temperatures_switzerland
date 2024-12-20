@@ -8,13 +8,15 @@ site_pairs$V2 %>% unique %>% length
 num_quantiles = 30
 
 my_qnt=0.8
+
+marg_mod = "mod_1"
+
+empirical_chi_scale = function(my_qnt, marg_mod){
   
   site_pairs = read_csv("Data/processed/plain_obs_pairs_with_dist.csv")
-    
-  #might not need all the above
-  standardised_data = readRDS(paste0("Data/processed/standardised_data_for_bootstrapping_num_quantiles_", num_quantiles))%>%
-    select(stn, year, date, unif_1)%>%
-    rename(unif = unif_1)
+
+  standardised_data = read.csv(paste0("Data/processed/plain_obs_data_pareto_frechet_scale_", marg_mod,".csv"))%>%
+    select(stn, year, date, unif)
     
   dates_to_keep = standardised_data %>%
     group_by(date) %>%
@@ -59,12 +61,39 @@ my_qnt=0.8
         )
       }, .keep = TRUE) %>%
       bind_rows()  # Combine all grouped tibbles into one
+}
 
-#chekc how to plot the empirical chi from what I just did (could check if it's worth it to save the result)
-    
-empirical_chi %>%
+#the block takes 7 min 
+job::job({
+  emp_chi_mod_0_08 = empirical_chi_scale(0.8, "mod_0")
+  })
+job::job({
+  emp_chi_mod_0_085 = empirical_chi_scale(0.85, "mod_0")
+})
+job::job({
+  emp_chi_mod_0_09 = empirical_chi_scale(0.9, "mod_0")
+})
+
+
+job::job({
+  emp_chi_mod_1_08 = empirical_chi_scale(0.8, "mod_1")
+})
+job::job({
+  emp_chi_mod_1_085 = empirical_chi_scale(0.85, "mod_1")
+})
+job::job({
+  emp_chi_mod_1_09 = empirical_chi_scale(0.9, "mod_1")
+})
+
+
+emp_chi_mod_0_08 %>%
   ggplot(aes(x = dist, y = chi)) +
-  geom_point() +
+  geom_point(size = 3) +
   ylim(0, 1) +
   theme_minimal() +
-  labs(title = "p = 0.8")
+  labs(title = "p = 0.8") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 20),  # Increase title size
+    axis.title = element_text(size = 18),# Increase axis label size
+    axis.text = element_text(size = 16)# Increase axis number size
+  )

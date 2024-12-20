@@ -1,8 +1,5 @@
 # scale up simulations
 
-#NEED TO REDO THE SIMULATIONS (even tough I don't think it will change much)
-
-
 rm(list=ls())
 library(tidyverse)
 library(evd)
@@ -36,11 +33,10 @@ scale_true_sim = function(marg_mod, yr, tmp, nu_name, robust = TRUE){
     dplyr::select(threshold_9, stn)%>%
     unique()
   
-  obs_sites = vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model.csv") %>%
+  obs_sites = vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model_025.csv") %>%
     select(stn, scale_9)%>%
     unique()%>%
-    left_join(threshold_9_df, by="stn")%>%
-    filter(!(stn %in% c("WSLBTB", "WSLHOB")))
+    left_join(threshold_9_df, by="stn")
   
   grid_simulated = as.data.frame(read_csv("Data/processed/plain_obs_grid_simulated_on.csv")) %>%
     left_join(legend_data %>%select(stn, longitude_proj, latitude_proj), by = c("longitude_proj", "latitude_proj") )%>%
@@ -48,7 +44,7 @@ scale_true_sim = function(marg_mod, yr, tmp, nu_name, robust = TRUE){
   
   # ---- for each model get scale shape and lambda 
   this_grid = grid_simulated %>%
-    left_join(read_csv("Data/processed/plain_glob_anomaly_thresh_exceedance_lambda_num_quantiles_30.csv") %>% filter((year == yr) & !(stn %in% c("WSLBTB", "WSLHOB")))) %>%
+    left_join(read_csv("Data/processed/plain_glob_anomaly_thresh_exceedance_lambda_num_quantiles_30.csv") %>% filter(year == yr)) %>%
     left_join(extreme_temp_pareto )
   
   my_simulations_extremes = c()
@@ -93,27 +89,60 @@ scale_true_sim = function(marg_mod, yr, tmp, nu_name, robust = TRUE){
 
 
 rm(nu_name)
-nu_name="015"
+nu_name="012"
 robust=TRUE
 
-job::job({scale_true_sim("mod_1", 1971, 27, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 2022, 27, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 1971, 28, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 2022, 28, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 1971, 29, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 1971, 35, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 35, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 1971, 36, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 36, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 1971, 37, nu_name, robust)})
 
-job::job({scale_true_sim("mod_1", 2022, 29, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 1971, 30, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 2022, 30, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 1971, 31, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 2022, 31, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 37, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 1971, 38, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 38, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 1971, 39, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 39, nu_name, robust)})
 
-job::job({scale_true_sim("mod_1", 1971, 32, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 2022, 32, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 1971, 33, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 2022, 33, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 1971, 40, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 40, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 1971, 41, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 41, nu_name, robust)})
 
-job::job({scale_true_sim("mod_1", 1971, 34, nu_name, robust)})
-job::job({scale_true_sim("mod_1", 2022, 34, nu_name, robust)})
+
+job::job({scale_true_sim("mod_0", 1971, 42, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 42, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 1971, 43, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 43, nu_name, robust)})
+
+
+
+
+
+
+
+
+
+
+
 job::job({scale_true_sim("mod_1", 1971, 35, nu_name, robust)})
 job::job({scale_true_sim("mod_1", 2022, 35, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 1971, 36, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 2022, 36, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 1971, 37, nu_name, robust)})
+
+job::job({scale_true_sim("mod_1", 2022, 37, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 1971, 38, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 2022, 38, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 1971, 39, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 2022, 39, nu_name, robust)})
+
+job::job({scale_true_sim("mod_1", 1971, 40, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 2022, 40, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 1971, 41, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 2022, 41, nu_name, robust)})
+
+job::job({scale_true_sim("mod_1", 1971, 42, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 2022, 42, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 1971, 43, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 2022, 43, nu_name, robust)})

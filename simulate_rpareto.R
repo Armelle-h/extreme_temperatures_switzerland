@@ -1,5 +1,5 @@
 # simulate under true model
-# ---- similate on clim scale grid
+# ---- simulate on clim scale grid
 
 rm(list=ls())
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
@@ -11,9 +11,8 @@ source('mvPot/simulPareto.R') #mvPot is no compatible with my current version of
 marg_mod = 'mod_1'
 
 #nu
-
-nu_val = 0.15
-nu_name = "015"
+nu_val = 0.07
+nu_name = "007"
 
 read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv") %>% 
   dplyr::select(longitude_proj, latitude_proj) %>% 
@@ -52,7 +51,7 @@ vario_matrix = (variogram_model(dstncs)) %>% matrix(nrow = nlocs, byrow = T)
 for (index in c(1, 26, 51, 76)) {
   job::job (
     {
-      file_name = paste0("output/simulations/simulations_on_obs_grid/true/nu_", nu_name,"_",marg_mod,"_run_")
+      file_name = paste0("output/simulations/simulations_on_obs_grid/true_robust/nu_",nu_name,"/nu_", nu_name,"_",marg_mod,"_run_")
       
       for(i in seq(index, index+24)){
         print(i)

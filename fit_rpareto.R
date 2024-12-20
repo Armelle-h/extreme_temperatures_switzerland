@@ -14,7 +14,7 @@ library(optimx)
 library(foreach)
 library(sf)
 
-marg_mod = "mod_1"
+marg_mod = "mod_0"
 
 #defining the likelihood function based on pairwise relationships between locations 
 #computes the loglikelihood for a single dataset/realization of the data
@@ -85,7 +85,7 @@ ngll = function(pars){
         return (2^100)
       } 
       
-      nu = 0.01 #used to be 0.2
+      nu = 0.12
       res = rep(NA, length(h))
       res[h == 0] = 0
       res[h != 0] = alpha*(1 - ((((h[h != 0] /beta)^nu) * besselK(x = (h[h != 0] / beta), nu = nu))/(gamma(nu)*2^(nu - 1))))
@@ -111,44 +111,14 @@ data_for_rpareto = readRDS(paste0("Data/processed/data_for_rpareto/true/robust_p
 #  mutate(year_index = year-1970)%>%
 #  select(year)
 
-.GlobalEnv$stat <- TRUE #do we want alpha and beta to vary with time or not ? 
+.GlobalEnv$stat <- TRUE 
 
-fit <<- optimx::optimx(par = c(0.7, 600), fn = ngll ,hessian = F, method = 'Nelder-Mead') #used to have par = c(0.5,30)
+fit <<- optimx::optimx(par = c(0.5, 0.5), fn = ngll ,hessian = F, method = 'Nelder-Mead') 
 
 # method = 'L-BFGS-B'
 tibble(fit$p1, fit$p2) %>%
   write_csv(paste0("output/rpareto_model_fits/robust_plain_true_rpareto_fits_model_", marg_mod, ".csv"), append = T)
 
 
-tibble(0.4644155, 45.313428) %>%
-  write_csv(paste0("output/rpareto_model_fits/robust_plain_nu_015_true_rpareto_fits_model_", marg_mod, ".csv"), append = T)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-num_cores <- detectCores() - 1
-cl <- parallel::makeCluster(num_cores, type = "PSOCK")
-clusterExport(cl, list("HRD_ll", "exceedances_locs"))
-clusterEvalQ(cl, {library(tidyverse); library(sf)})
-doParallel::registerDoParallel(cl)
-fit <<- optimx::optimx(par = c(1,1), fn = ngll ,hessian = F, method = 'Nelder-Mead') # Variance + range constant
-parallel::stopCluster(cl)
-
-#debug 
-num_cores <- detectCores() - 1
-cl <- parallel::makeCluster(num_cores, type = "PSOCK")
-clusterExport(cl, list("HRD_ll", "exceedances_locs"))
-clusterEvalQ(cl, {library(tidyverse); library(sf)})
-doParallel::registerDoParallel(cl)
-ngll(c(1,1))
-parallel::stopCluster(cl)
+tibble(0.4797453, 85.4204726  ) %>%
+  write_csv(paste0("output/rpareto_model_fits/robust_plain_nu_012_true_rpareto_fits_model_", marg_mod, ".csv"), append = T)

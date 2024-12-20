@@ -24,8 +24,9 @@ my_pal = c(
   '#ffa600')
 
 #general variables 
-nu_name = "015"
-nu_val = 0.15
+marg_mod = 'mod_0'
+nu_name = "012"
+nu_val = 0.12
 robust = TRUE
   
 if (robust == TRUE){
@@ -34,16 +35,14 @@ if (robust == TRUE){
   true_folder = "true"
 }
 
-filter_nb = 10 
+filter_nb = 5 
 
 # map for plotting
 switzerland <- ne_countries(country = "Switzerland", scale = "medium", returnclass = "sf")
 
 switzerland <- st_transform(switzerland, crs = 4326)
 
-
-marg_mod = 'mod_1'
-obs_smoothed_quantiles = readRDS(paste0("output/quant_models_clim_num_", marg_mod, "_quantiles_30.csv"))%>% 
+obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models_clim_num_quantiles_30.csv"))%>% 
   filter(id %%filter_nb == 0)
 
 # --- marginal model names
@@ -51,12 +50,7 @@ obs_smoothed_quantiles = readRDS(paste0("output/quant_models_clim_num_", marg_mo
 #clim_grid_simulated_on is the same as id_lon_lat restricted to the columns longitude and latitude for me where longitude and latitude are projected
 #clim_grid_simulated_on_not_projected is the same as id_lon_lat restricted to the columns longitude and latitude for me
 
-#filtering mode 10 to start with and then with mod 5.
 locs_to_pred = read.csv("Data/plain_id_lon_lat_correspondance.csv")%>% filter(id %%filter_nb == 0) %>% select(longitude_proj, latitude_proj) %>% unique() 
-
-#read_csv("data/processed/clim_data_full.csv") %>% dplyr::select(Long.projected, Lat.projected) %>% unique %>% write_csv("Data/processed/clim_grid_simulated_on.csv")
-#locs_to_pred = as.data.frame(read_csv("data/processed/clim_grid_simulated_on.csv"))
-#read_csv("data/processed/clim_data_full.csv") %>% dplyr::select(Long, Lat) %>% unique %>% write_csv("data/processed/clim_grid_simulated_on_not_projected.csv")
 
 variogram_model = function(h){
   nu=nu_val 
@@ -99,13 +93,12 @@ sims = read.csv("Data/plain_id_lon_lat_correspondance.csv")%>% filter(id %%filte
   mutate(sim_1 = simulations[[ind_of_ex[1]]],
          sim_2 = simulations[[ind_of_ex[2]]],
          sim_3 = simulations[[ind_of_ex[3]]],
-         sim_2 = simulations[[ind_of_ex[4]]],
-         sim_5 = simulations[[ind_of_ex[5]]]) %>%
+         sim_4 = simulations[[ind_of_ex[4]]]) %>%
   pivot_longer(-c(id)) %>%
   rename(pareto = value)
 
 sims = sims %>%
-  left_join(read_csv("Data/Climate_data/clim_scale_grid_gpd_model.csv") %>% 
+  left_join(read_csv("Data/Climate_data/plain_clim_scale_grid_gpd_model_025.csv") %>% 
               filter(id %% filter_nb ==0) %>%
               dplyr::select(id, scale_9), by = "id")
 
@@ -122,9 +115,9 @@ sims = rbind(sims %>% mutate(year = 2022), sims %>% mutate(year = 1971)) %>%
   left_join(obs_smoothed_quantiles %>%
               dplyr::select(id, tau_to_temp, threshold_9, thresh_exceedance_9, year))
 
-this_fit_mod = read_csv("output/gpd_model_fits/model_1_true.csv") %>%
+this_fit_mod = read_csv("output/gpd_model_fits/plain_model_1_true_025.csv") %>%
   unlist() %>% as.numeric
-sims$shape = this_fit_mod[length(this_fit_mod)]
+sims$shape = -0.25
 sims$scale = my_predict_1(this_fit_mod, sims$scale_9, sims$glob_anom)$scale
 
 
@@ -146,9 +139,6 @@ for(i in seq(nrow(sims))){
 sims = sims %>%
   rename(lab = name)%>%
   left_join(read.csv("Data/plain_id_lon_lat_correspondance.csv")%>% filter(id %%filter_nb == 0) %>% select(id, longitude, latitude) %>% unique() )
-
-
-#supposed to have 5 simulations. Something went wrong with one of them
 
 plt = gridExtra::grid.arrange(sims %>%
                                 dplyr::select(longitude, latitude, year, date_scale, lab) %>%
@@ -196,7 +186,7 @@ plt = gridExtra::grid.arrange(sims %>%
 
 plt = gridExtra::grid.arrange(sims %>%
                                 dplyr::select(longitude, latitude, year, date_scale, lab) %>%
-                                filter(lab %in% c("sim_3", "sim_5"))%>%
+                                filter(lab %in% c("sim_3", "sim_4"))%>%
                                 filter(year == 2022) %>%
                                 ggplot()+
                                 geom_point(aes(longitude, latitude, col = date_scale), size = 0.5)+
@@ -213,7 +203,7 @@ plt = gridExtra::grid.arrange(sims %>%
                                       plot.margin=unit(c(0,0,-0.1,0),"cm")),
                               sims %>%
                                 dplyr::select(longitude, latitude, year, date_scale, lab) %>%
-                                filter(lab %in% c("sim_3", "sim_5"))%>%
+                                filter(lab %in% c("sim_3", "sim_4"))%>%
                                 filter(year == 2022) %>% 
                                 rename(temp_new = date_scale) %>%
                                 dplyr::select(-year) %>%

@@ -198,11 +198,11 @@ quant_reg_model_pars = read_csv(paste0("Data/processed/plain_glob_anomaly_quanti
 
 #need to create
 clim_grid = read_csv("Data/Climate_data/plain_clim_scale_grid_gpd_model_025.csv")%>%
-  filter(id %% 10 == 0)
+  filter(id %% 5 == 0)
 
 
 clim_quantiles_subset = readRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))%>%
-  filter(id %% 10 == 0)
+  filter(id %% 5 == 0)
 
 #to have scale_9 and quantile and value in the same dataframe
 clim_grid = clim_grid %>%

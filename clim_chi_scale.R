@@ -31,11 +31,10 @@ clim_thresh = clim_data %>%
   summarise(clim_thresh_value_9 = quantile(maxtp, 0.9, na.rm = TRUE))
 #first converting clim_data to pareto
 
-clim_quantiles_subset = readRDS(paste0("Data/processed/clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))%>%
-  filter(id %% 25 == 0)%>%
-  filter(id %in% I_plain$id)
+clim_quantiles_subset = readRDS(paste0("Data/processed/plain_clim_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))%>%
+  filter(id %% 25 == 0)
 
-clim_grid = read_csv("Data/Climate_data/plain_clim_scale_grid_gpd_model.csv")%>%
+clim_grid = read_csv("Data/Climate_data/plain_clim_scale_grid_gpd_model_025.csv")%>%
   filter(id %% 25 == 0)
 
 clim_smooth = clim_quantiles_subset %>%
@@ -67,7 +66,7 @@ lambda_thresh_ex = clim_thresh %>%
   plyr::rbind.fill() %>%
   as_tibble()
 
-shape = readRDS("Data/clim_data_gpd_model/plain_optimal_shape.rds")
+shape = - 0.25
 
 I_date = read.csv("Data/id_date_correspondance.csv")%>%
   mutate(year = lubridate::year(date))
@@ -135,8 +134,6 @@ calc_clim_chi_true = function(p, pareto_val){
     select("id", "longitude_proj", "latitude_proj")%>%
     filter(id %% 25 ==0)%>% #else way too heavy
     unique()
-  
-  #part below will change because we do an empirical estimate and not a simulated one
 
   for(s in seq(nrow(sites))){ 
       
@@ -164,16 +161,11 @@ calc_clim_chi_true = function(p, pareto_val){
   }
 }
 
-#20 minutes for 1000 simulations. A bit more than 2 hours for 8000 !!!
-
-#pth marginal quantile of XoP is not 28!!! It is 28oP!!
-
 pareto_val = clim_data_standardised %>% 
   filter(year %in% c(1971, 2022)) %>% 
   select(id, pareto_marg, date)
 
-
-
+#takes 20 minutes
 for (p in c(0.8, 0.85, 0.9)){
   
   job::job({
@@ -197,7 +189,7 @@ max_distance <- max(chi_file_08$distance, na.rm = TRUE)
 chi_true_violin_08 = chi_file_08 %>%
   mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 30))) %>% #used to be 20 but in the report they mentioned 30 binned distances
   group_by(dist_bin) %>%
-  summarise(chi, distance = median(distance))  
+  summarise(chi, distance = round(median(distance)))  
 
 chi_true_violin_08 %>%
   ggplot(aes(x = factor(distance), y = chi, fill="blue")) +
@@ -209,12 +201,13 @@ chi_true_violin_08 %>%
     title = "p = 0.8",
     x = "Binned Distance",
     y = "Chi"
-  )
+  )+
+  theme(plot.title = element_text(hjust = 0.5))
 
 chi_true_violin_085 = chi_file_085 %>%
   mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 30))) %>% #used to be 20 but in the report they mentioned 30 binned distances
   group_by(dist_bin) %>%
-  summarise(chi, distance = median(distance))  
+  summarise(chi, distance = round(median(distance)))  
 
 chi_true_violin_085 %>%
   ggplot(aes(x = factor(distance), y = chi, fill="blue")) +
@@ -226,12 +219,13 @@ chi_true_violin_085 %>%
     title = "p = 0.85",
     x = "Binned Distance",
     y = "Chi"
-  )
+  )+
+  theme(plot.title = element_text(hjust = 0.5))
 
 chi_true_violin_09 = chi_file_09 %>%
   mutate(dist_bin = cut(distance, breaks=seq(0, max_distance, length.out = 30))) %>% #used to be 20 but in the report they mentioned 30 binned distances
   group_by(dist_bin) %>%
-  summarise(chi, distance = median(distance))  
+  summarise(chi, distance = round(median(distance)))  
 
 chi_true_violin_09 %>%
   ggplot(aes(x = factor(distance), y = chi, fill="blue")) +
@@ -243,7 +237,8 @@ chi_true_violin_09 %>%
     title = "p = 0.9",
     x = "Binned Distance",
     y = "Chi"
-  )
+  )+
+  theme(plot.title = element_text(hjust = 0.5))
 
 
 

@@ -26,7 +26,7 @@ dist_h <- function(long1, lat1, long2, lat2) {
   return(as.numeric(distance))
 }
 
-# itterate through all stations and find climate grid point
+# iterate through all stations and find climate grid point
 closest_irel = c()
 dist_smallest = c()
 for(i in seq(nrow(obs_sites_1))){

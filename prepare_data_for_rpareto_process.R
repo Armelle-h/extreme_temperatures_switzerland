@@ -5,9 +5,7 @@ setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)
 library(sf)
 
-marg_mod = "mod_1"
-
-prep_rpareto_true = function(marg_mod){
+marg_mod = "mod_0"
   
   legend_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")
   
@@ -25,15 +23,13 @@ prep_rpareto_true = function(marg_mod){
     dplyr::select(threshold_9, stn)%>%
     unique()
   
-  obs_data = vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model.csv") %>%
+  obs_data = vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model_025.csv") %>%
     mutate(year = lubridate::year(date))%>%
     left_join(vroom::vroom(paste0("Data/processed/plain_glob_anomaly_thresh_exceedance_lambda_num_quantiles_", num_quantiles, ".csv")))  %>%
     left_join(glob_anomaly_reshaped, by = "year")%>%
-    left_join(threshold_9_df, by="stn")%>%
-    filter(!(stn %in% c("WSLBTB", "WSLHOB")))
+    left_join(threshold_9_df, by="stn")
   
-  obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models_num_quantiles_", num_quantiles, ".csv"))%>%
-    filter(!(stn %in% c("WSLBTB", "WSLHOB")))
+  obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models_num_quantiles_", num_quantiles, ".csv"))
   
   # pull date which have 'conditioning' site
   #doesn't change anything as KOP has observation for the entirety of the temporal range
@@ -89,13 +85,14 @@ prep_rpareto_true = function(marg_mod){
       res[res>0.999999]=0.999999
       
       .x$unif = res
-      #.x$frechet_marg = -1/log(.x$unif)
+      .x$frechet_marg = -1/log(.x$unif)
       .x$pareto_marg = 1/(1-.x$unif)
       .x
     },.keep = T) %>%
     plyr::rbind.fill()%>%
     as_tibble() 
   
+  obs_data_standardised %>% write.csv(paste0("Data/processed/plain_obs_data_pareto_frechet_scale_", marg_mod,".csv"))
   
   # -------- MULTIVARIATE EVENTS
   
@@ -107,17 +104,28 @@ prep_rpareto_true = function(marg_mod){
     ungroup() %>%
     arrange(desc(cost))
   
-  tot_dates =nrow(extreme_dates)
+  #assuming c_r=1, starting what threshold does the proba residual starts to stabilizes around 0.
+  
+  proba = c()
+  
+  for (q in seq(0.1, 0.99, length.out = 200)){
+    threshold = quantile(extreme_dates$cost, q) %>% as.numeric
+    proba = c(proba, nrow(extreme_dates %>%filter(cost > threshold))/nrow(extreme_dates)-1/threshold)
+  }
+  
+  plot(seq(0.1, 0.99, length.out = 200), proba,
+       xlab = "Quantile", 
+       ylab = "Probability residual")
   
   # get cost threshold
   threshold = quantile(extreme_dates$cost, 0.8) %>% as.numeric   #robust to outliers
+  
+  saveRDS(threshold, paste0("Data/spatial_threshold_", marg_mod,".rds"))
   
   # get extreme dates
   extreme_dates = extreme_dates %>%
     filter(cost > threshold) %>%
     arrange(desc(cost))
-  
-  cat("cr =", nrow(extreme_dates)*threshold/tot_dates)
   
   # temporally decluster events
   my_data_tmp = extreme_dates %>% arrange(date)
@@ -193,7 +201,6 @@ prep_rpareto_true = function(marg_mod){
        thresh = threshold,
        extreme_dates = extreme_dates) %>%
     saveRDS(paste0("Data/processed/data_for_rpareto/true/robust_plain_data_for_rpareto_", marg_mod))
-}
 
 
 #job::job({prep_rpareto_true("mod_0")})

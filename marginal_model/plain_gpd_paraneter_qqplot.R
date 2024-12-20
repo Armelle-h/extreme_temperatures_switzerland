@@ -55,6 +55,11 @@ if(fit_true_models){
     mutate(excess = maxtp - threshold_9) %>%
     filter(excess > 0)
   
+  fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_9,
+            c(1, -0.02, -0.19))  %>%
+    matrix() %>% t() %>% as.data.frame() %>%
+    write_csv("output/gpd_model_fits/plain_model_0_true_025.csv")
+  
   fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_9,
             extreme_dat_true$glob_anom, c(0.6, 0.03, 0.4, -0.2))  %>%
     matrix() %>% t() %>% as.data.frame() %>%

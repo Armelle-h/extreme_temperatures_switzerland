@@ -7,16 +7,26 @@ library(tidyverse)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 source('marginal_model/gpd_models.R')
 
+marg_mod = "mod_0"
+
+nu = 0.12
+nu_val = "012"
+robust = TRUE
+
+if (robust == TRUE){
+    true_folder = "true_robust"
+} else{
+    true_folder = "true"
+}
+
 num_quantiles = 30
 
-scales = vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model.csv")%>% 
+scales = vroom::vroom("Data/Observed_data/plain_obs_data_gpd_model_025.csv")%>% 
   select(stn, scale_9) %>%
-  filter(!(stn %in% c("WSLBTB", "WSLHOB")))%>% 
   unique()
 
 threshold_9_df = readRDS(paste0("Data/processed/plain_obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv")) %>%
-  select(stn, threshold_9)  %>%
-  filter(!(stn %in% c("WSLBTB", "WSLHOB")))%>%  
+  select(stn, threshold_9)  %>% 
   unique()
 
 legend_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")%>%
@@ -34,23 +44,29 @@ glob_anomaly_reshaped = glob_anomaly %>%
   select(c("year", "JJA"))%>%
   rename(glob_anom = JJA)
 
-thresh_ex = vroom::vroom(paste0("Data/processed/plain_glob_anomaly_thresh_exceedance_lambda_num_quantiles_", num_quantiles, ".csv"))%>%
-  filter(!(stn %in% c("WSLBTB", "WSLHOB")))
+thresh_ex = vroom::vroom(paste0("Data/processed/plain_glob_anomaly_thresh_exceedance_lambda_num_quantiles_", num_quantiles, ".csv"))
 
 obs_grid = thresh_ex  %>%
   left_join(obs_sites, by = "stn") %>%
   left_join(glob_anomaly_reshaped, by = "year")%>%
   filter(year %in% c(1971, 2022))
 
-gpd_pars = read_csv("output/gpd_model_fits/model_1_true.csv")
-obs_grid$scale = my_predict_1(unlist(gpd_pars), obs_grid$scale_9, obs_grid$glob_anom)$scale
-obs_grid$shape = my_predict_1(unlist(gpd_pars), obs_grid$scale_9, obs_grid$glob_anom)$shape
+if(marg_mod == "mod_1"){
+  gpd_pars = read_csv("output/gpd_model_fits/plain_model_1_true_025.csv")
+  obs_grid$scale = my_predict_1(unlist(gpd_pars), obs_grid$scale_9, obs_grid$glob_anom)$scale
+  obs_grid$shape = -0.25
+}
+if(marg_mod == "mod_0"){
+  gpd_pars = read_csv("output/gpd_model_fits/plain_model_0_true_025.csv")
+  obs_grid$scale = my_predict_0(unlist(gpd_pars), obs_grid$scale_9)$scale
+  obs_grid$shape = -0.25
+}
 
 # ---- Read in simulations
 my_simulations_extremes = c()
 for(i in seq(1, 100)){
   #stuck I don't have that
-  my_simulations_extremes = c(my_simulations_extremes, readRDS(paste0("output/simulations/simulations_on_obs_grid/true_robust/nu_015/nu_015_mod_1_run_",i)))
+  my_simulations_extremes = c(my_simulations_extremes, readRDS(paste0("output/simulations/simulations_on_obs_grid/", true_folder,"/nu_", nu_val,"/nu_", nu_val,"_", marg_mod,"_run_",i)))
 }
 
 my_simulations_extremes = my_simulations_extremes[seq(25000)]
@@ -58,7 +74,7 @@ my_simulations_extremes = my_simulations_extremes[seq(25000)]
 # ---- standardise simulations to have cost = 1
 my_simulations_standardised = list()
 for (i in 1:length(my_simulations_extremes)) {
-  this_cost = median(my_simulations_extremes[[i]]) #swithced mean to median
+  this_cost = median(my_simulations_extremes[[i]]) #switched mean to median
   my_simulations_standardised[[i]] = my_simulations_extremes[[i]]/this_cost
 }
 
@@ -74,9 +90,9 @@ L = 300
 res_1971 = c()
 res_2022 = c()
 
-r_thresh = readRDS("Data/spatial_threshold.rds")
+r_thresh = readRDS(paste0("Data/spatial_threshold_", marg_mod,".rds"))
 
-for(temp_i_want in seq(26,34)){
+for(temp_i_want in seq(35,43)){
   print(temp_i_want)
   
   obs_grid$pareto = 1/(obs_grid$thresh_exceedance_9*(1-evd::pgpd(temp_i_want - obs_grid$threshold_9,  scale = obs_grid$scale, shape =  obs_grid$shape[1] )) )
@@ -93,7 +109,6 @@ for(temp_i_want in seq(26,34)){
   above_1971 = 0
   above_2022 = 0
   for(i in seq(L)){
-    print(i)
     this_set_scaled = my_simulations_standardised %>%
       map(~{ 
         .x*evd::rgpd(n=1, loc = 1, scale = 1, shape = 1)
@@ -111,38 +126,31 @@ for(temp_i_want in seq(26,34)){
   tibble(temp = temp_i_want, 
          p_1971 = above_1971 / (length(my_simulations_standardised)*L*b_1971),
          p_2022 = above_2022 / (length(my_simulations_standardised)*L*b_2022)) %>%
-    write_csv("output/importance_sampling/prob_extreme_temp_imp_samp_mod_1.csv", append = T)
+    write_csv(paste0("output/importance_sampling/prob_extreme_temp_imp_samp_nu_", nu_val,"_", marg_mod, ".csv"), append = T)
 }
 
 # ----- plot figures
 
-read_csv("output/importance_sampling/prob_extreme_temp_imp_samp_mod_1.csv",
+read_csv(paste0("output/importance_sampling/prob_extreme_temp_imp_samp_nu_", nu_val,"_", marg_mod, ".csv"),
          col_names = c('temp', 'p_1971', 'p_2022')) %>%
-  filter(temp<=35, temp>25) %>%
-  group_by(temp) %>%
-  summarise(p_1971_lower = quantile(p_1971, 0.1, na.rm=T),
-            p_1971_upper = quantile(p_1971, 0.9, na.rm=T),
-            p_2022_lower = quantile(p_2022, 0.1, na.rm=T),
-            p_2022_upper = quantile(p_2022, 0.9, na.rm=T)) %>%
+  filter(temp<=43, temp>34) %>%
   ggplot()+
-  geom_ribbon(aes(temp,  ymin = 1/(92*p_1971_lower), ymax = 1/(92*p_1971_upper), fill = '1971'), alpha = 0.5)+
-  geom_ribbon(aes(temp,  ymin = 1/(92*p_2022_lower), ymax = 1/(92*p_2022_upper), fill = '2022'), alpha = 0.5)+
-  geom_line(data = read_csv("output/importance_sampling/prob_extreme_temp_imp_samp_mod_1.csv",
+  geom_line(data = read_csv(paste0("output/importance_sampling/prob_extreme_temp_imp_samp_nu_", nu_val,"_", marg_mod, ".csv"),
                             col_names = c('temp', 'p_1971', 'p_2022')) %>%
-              filter(temp<=35, temp>25), aes(temp, 1/(92*p_1971), col = '1971'))+
-  geom_line(data = read_csv("output/importance_sampling/prob_extreme_temp_imp_samp_mod_1.csv",
+              filter(temp<=43, temp>34), aes(temp, 1/(92*p_1971), col = '1971'))+
+  geom_line(data = read_csv(paste0("output/importance_sampling/prob_extreme_temp_imp_samp_nu_", nu_val,"_", marg_mod, ".csv"),
                             col_names = c('temp', 'p_1971', 'p_2022')) %>%
-              filter(temp<=35, temp>25), aes(temp, 1/(92*p_2022), col = '2022'), linetype = 'dashed')+
+              filter(temp<=43, temp>34), aes(temp, 1/(92*p_2022), col = '2022'), linetype = 'dashed')+
   theme_minimal()+
   labs(x = "Temperature",
        y = "Return period (Years)",
        fill = 'Year', col = "Year")+
   theme_minimal(12)+
-  scale_x_continuous(limits = c(26, 34),
-                     breaks = c(26, 28,  30,  32, 34),
-                     label = paste0(c(26, 28,  30,  32,34),"°C"))+
+  scale_x_continuous(limits = c(35, 43),
+                     breaks = c(35, 37,  39,  41, 43),
+                     label = paste0(c(35, 37,  39,  41, 43),"°C"))+
   scale_y_log10(breaks = c(0.1, 1, 10,  100,  1000),
                 labels = c(0.1, 1, 10,  100,  1000))+
-  coord_flip(ylim = c(0.075, 1000), xlim = c(26, 34))+
+  coord_flip(ylim = c(0.075, 1000), xlim = c(35, 43))+
   theme(axis.title.y = element_text(angle = 0, vjust = 0.5),
         legend.position = 'none')
