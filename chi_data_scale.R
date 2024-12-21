@@ -2,7 +2,6 @@
 rm(list=ls())
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)
-marg_mod = 'mod_1'
 
 #computes the chi dependence static for a given model, year and temperature
 calc_chi_true = function(marg_mod, yr, tmp, nu_name, robust=FALSE){
@@ -47,6 +46,10 @@ calc_chi_true = function(marg_mod, yr, tmp, nu_name, robust=FALSE){
       #computes chi = number of simulations where id1 and id2 exceed the threshold / nb od simulations where id1 exceeds.
       #conditional proba that site id2 exceeds threshold given that site id1 does.
       #we don't necessarily have values for all the pairs, it depends on the pairs simulated
+      
+      #we compute P[X^P_o(t,s)>T_P_o(t,s)] where T is tmp and the transformation of T to pareto margin is done in the df pareto_val
+      #as we already have the conditioning on t (t=yr), we only need to extract the value associated with the station.
+      #Hence the pareto_val[which(grid_simulated$stn==id1)].
       id1_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id1))) > pareto_val[which(grid_simulated$stn == id1)])
       id2_exceeds = (unlist(lapply(my_simulations, "[[", which(grid_simulated$stn == id2))) > pareto_val[which(grid_simulated$stn == id2)])
       
@@ -58,23 +61,25 @@ calc_chi_true = function(marg_mod, yr, tmp, nu_name, robust=FALSE){
 
 #20 minutes for 1000 simulations. A bit more than 2 hours for 8000 !!!
 
-#for switzerland, we should have 27, 28 and 29 degrees
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 30, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 29, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 28, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 30, nu_name = "015", robust = TRUE)})
+#27, 28, 29 correspond to the 0.8, 0.85, 0.9 quantile of the observed temperatures
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 27, nu_name = "007", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 28, nu_name = "007", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 2022, tmp = 29, nu_name = "007", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 27, nu_name = "007", robust = TRUE)})
 
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 29, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 28, nu_name = "015", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 28, nu_name = "007", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 29, nu_name = "007", robust = TRUE)})
 
-#for switzerland, we should have 27, 28 and 29 degrees
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 2022, tmp = 30, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 2022, tmp = 29, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 2022, tmp = 28, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 1971, tmp = 30, nu_name = "015", robust = TRUE)})
+#for comparison purpose
+job::job({calc_chi_true(marg_mod = "mod_1", yr = 1971, tmp = 36, nu_name = "012", robust = TRUE)}) #pretty high temp to see what happens
 
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 1971, tmp = 29, nu_name = "015", robust = TRUE)})
-job::job({calc_chi_true(marg_mod = "mod_0", yr = 1971, tmp = 28, nu_name = "015", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_0", yr = 2022, tmp = 27, nu_name = "012", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_0", yr = 2022, tmp = 28, nu_name = "012", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_0", yr = 2022, tmp = 29, nu_name = "012", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_0", yr = 1971, tmp = 27, nu_name = "012", robust = TRUE)})
+
+job::job({calc_chi_true(marg_mod = "mod_0", yr = 1971, tmp = 28, nu_name = "012", robust = TRUE)})
+job::job({calc_chi_true(marg_mod = "mod_0", yr = 1971, tmp = 29, nu_name = "012", robust = TRUE)})
 
 # # ------ PLOT MODELS
 
@@ -88,20 +93,22 @@ if (robust == TRUE){
   true_folder = "true"
 }
 
-nu_name = "015"
+nu_name = "012"
 
 chi_true = rbind(read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_1971_conditioned_on_28.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '1971'),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "27°C", year = '1971'),
                  read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_1971_conditioned_on_29.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "29°C", year = '1971'),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '1971'),
                  read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_1971_conditioned_on_30.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "30°C", year = '1971'),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "29°C", year = '1971'),
                  read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_2022_conditioned_on_28.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '2022'),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "27°C", year = '2022'),
                  read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_2022_conditioned_on_29.csv"),
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "28°C", year = '2022'),
+                 read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_2022_conditioned_on_30.csv"),
                           col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "29°C", year = '2022'),
                  read_csv(paste0("output/simulations/simulation_summary/", true_folder, "_nu_",nu_name,"_chi_data_scale_clim_grid_model_",marg_mod,"_yr_2022_conditioned_on_30.csv"),
-                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "30°C", year = '2022'))
+                          col_names = c('s1', 's2', 'distance', 'chi')) %>% mutate(temp = "36°C", year = '2022'))
 
 
 max_distance <- max(chi_true$distance, na.rm = TRUE)
@@ -135,6 +142,14 @@ chi_true_summary %>%
 #scatter plot, unbinned distance vs estimate of chi
 
 chi_true %>%
+  filter(temp == "27°C")%>%
+  ggplot(aes(x = distance, y = chi)) +
+  geom_point() +
+  ylim(0, 1) +
+  theme_minimal()+
+  labs(title = "27°C")
+
+chi_true %>%
   filter(temp == "28°C")%>%
   ggplot(aes(x = distance, y = chi)) +
   geom_point() +
@@ -151,16 +166,32 @@ chi_true %>%
   labs(title = "29°C")
 
 chi_true %>%
-  filter(temp == "30°C")%>%
+  filter(temp == "36°C")%>%
   ggplot(aes(x = distance, y = chi)) +
   geom_point() +
   ylim(0, 1) +
   theme_minimal()+
-  labs(title = "30°C")
+  labs(title = "36°C")
 
 
 #violin plot of chi for each binned temperature
 
+
+chi_true_violin %>%
+  filter(temp == "27°C")%>%
+  ggplot(aes(x = factor(distance), y = chi, fill = temp)) +
+  geom_violin() +
+  facet_wrap(~ temp, scales = "free") +
+  ylim(0, 1) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5) # Centers the title
+  ) +
+  labs(
+    title = "27°C",
+    x = "Binned Distance",
+    y = "Chi"
+  )
 
 chi_true_violin %>%
   filter(temp == "28°C")%>%
@@ -169,11 +200,15 @@ chi_true_violin %>%
   facet_wrap(~ temp, scales = "free") +
   ylim(0, 1) +
   theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5) # Centers the title
+  ) +
   labs(
-    title = "Violin Plots of Chi by Binned Distance and Temperature",
+    title = "28°C",
     x = "Binned Distance",
     y = "Chi"
   )
+
 
 chi_true_violin %>%
   filter(temp == "29°C")%>%
@@ -182,22 +217,27 @@ chi_true_violin %>%
   facet_wrap(~ temp, scales = "free") +
   ylim(0, 1) +
   theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5) # Centers the title
+  ) +
   labs(
-    title = "Violin Plots of Chi by Binned Distance and Temperature",
+    title = "29°C",
     x = "Binned Distance",
     y = "Chi"
   )
 
-
 chi_true_violin %>%
-  filter(temp == "30°C")%>%
+  filter(temp == "36°C")%>%
   ggplot(aes(x = factor(distance), y = chi, fill = temp)) +
   geom_violin() +
   facet_wrap(~ temp, scales = "free") +
   ylim(0, 1) +
   theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5) # Centers the title
+  ) +
   labs(
-    title = "Violin Plots of Chi by Binned Distance and Temperature",
+    title = "36°C",
     x = "Binned Distance",
     y = "Chi"
   )

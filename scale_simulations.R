@@ -89,9 +89,27 @@ scale_true_sim = function(marg_mod, yr, tmp, nu_name, robust = TRUE){
 
 
 rm(nu_name)
-nu_name="012"
+nu_name="007"
 robust=TRUE
 
+#for chi_data_scale
+job::job({scale_true_sim("mod_0", 1971, 27, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 27, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 1971, 28, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 2022, 28, nu_name, robust)})
+job::job({scale_true_sim("mod_0", 1971, 29, nu_name, robust)})
+
+job::job({scale_true_sim("mod_0", 2022, 29, nu_name, robust)})
+
+job::job({scale_true_sim("mod_1", 1971, 27, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 2022, 27, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 1971, 28, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 2022, 28, nu_name, robust)})
+job::job({scale_true_sim("mod_1", 1971, 29, nu_name, robust)})
+
+job::job({scale_true_sim("mod_1", 2022, 29, nu_name, robust)})
+
+#for plot scale simulations
 job::job({scale_true_sim("mod_0", 1971, 35, nu_name, robust)})
 job::job({scale_true_sim("mod_0", 2022, 35, nu_name, robust)})
 job::job({scale_true_sim("mod_0", 1971, 36, nu_name, robust)})
@@ -114,16 +132,6 @@ job::job({scale_true_sim("mod_0", 1971, 42, nu_name, robust)})
 job::job({scale_true_sim("mod_0", 2022, 42, nu_name, robust)})
 job::job({scale_true_sim("mod_0", 1971, 43, nu_name, robust)})
 job::job({scale_true_sim("mod_0", 2022, 43, nu_name, robust)})
-
-
-
-
-
-
-
-
-
-
 
 job::job({scale_true_sim("mod_1", 1971, 35, nu_name, robust)})
 job::job({scale_true_sim("mod_1", 2022, 35, nu_name, robust)})

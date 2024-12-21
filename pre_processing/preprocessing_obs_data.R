@@ -188,8 +188,30 @@ obs_data_filtered = obs_data %>%
 
 write.csv(obs_data_filtered, "Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv", row.names=FALSE)
 
+#combining similar stations
+
+obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv")
+
+obs_data_filtered <- obs_data %>%
+  mutate(stn = if_else(stn == "AGAAR", "AAR", stn))%>%
+  mutate(stn = if_else(stn == "BZN", "BEZ", stn))%>%
+  mutate(stn = if_else(stn == "WSLLAE", "NABLAE", stn))%>%
+  mutate(stn = if_else(stn == "TGFRA", "FRF", stn))%>%
+  mutate(stn = if_else(stn == "MMHIR", "HIR", stn))
+
+#deleting stations
+obs_data_filtered = obs_data_filtered %>%
+  filter( !(stn %in% c("WSLBTB", "WSLHOB", "WSLBAB", "WSLCLB", "NABDAV", "WSLISB", "WSLISF")) )
 
 
+legend = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
+
+legend_filtered <- legend %>%
+  filter(stn %in% obs_data_filtered$stn)
+
+write.csv(legend_filtered, "Data/Observed_data/1971_2022_JJA_obs_legend.csv", row.names = FALSE)
+
+write.csv(obs_data_filtered, "Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv", row.names = FALSE)
 
 
 
