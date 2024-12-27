@@ -160,10 +160,8 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
         inits_coeff = c(quantile_model_fit$location$coefficients[1],quantile_model_fit$location$coefficients[2],quantile_model_fit$location$coefficients[3])
       }
       
-      quantile_model_fit <- fit_with_warning_handling(obs_data_for_quant_reg, zeta, inits_coeff)
-      
-      #evgam(maxtp ~ value + glob_anom, obs_data_for_quant_reg,
-      #                          family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
+      quantile_model_fit <- evgam(maxtp ~ value + glob_anom, obs_data_for_quant_reg,
+                                family = "ald", inits = inits_coeff ,ald.args = list(tau = zeta))
       
       # Save the fitted parameter estimates for each quantile
       result = tibble(tau = zeta,

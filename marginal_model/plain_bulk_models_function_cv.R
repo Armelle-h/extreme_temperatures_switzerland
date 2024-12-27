@@ -159,7 +159,6 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
         i = 0
         
         while (max(abs(prev_coeff-new_coeff))>3 & i<3){ #should check what bound would be good
-          
           i = i+1
           
           inits_coeff = runif(2, min = -1, max = 1)
@@ -198,7 +197,7 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
         
         i=0
         
-        while (max(abs(prev_coeff-new_coeff))>2 & i<3){
+        while (max(abs(prev_coeff-new_coeff))>4 & i<3){
           i=i+1
           inits_coeff = runif(3, min = -5, max = 5)
           quantile_model_fit <- evgam(maxtp ~ value + glob_anom, obs_data_for_quant_reg,
@@ -214,6 +213,7 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
                       beta_0 = new_coeff[1],
                       beta_1 = new_coeff[2],
                       beta_2 = new_coeff[3])
+      
       prev_coeff = new_coeff
     }
     
@@ -234,7 +234,7 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
         new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3], quantile_model_fit$location$coefficients[4])
         
         i=0
-        while ((max(abs(prev_coeff-new_coeff))>4 | intercept(new_coeff)) & i<3) { #should check what bound would be good
+        while (intercept(new_coeff) & i<3) { #we have high variance in the value of the coefficients, hard to set a bound implying we encountered begative hessian
           i=i+1
           inits_coeff = runif(4, min = -5, max = 5)
           quantile_model_fit <- evgam(maxtp ~ value + glob_anom + log(altitude), obs_data_for_quant_reg,
@@ -242,7 +242,10 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
           
           new_coeff = c(quantile_model_fit$location$coefficients[1], quantile_model_fit$location$coefficients[2], quantile_model_fit$location$coefficients[3], quantile_model_fit$location$coefficients[4])
         }
-        if (i==3){new_coeff = prev_coeff}
+        if (i==3){
+          new_coeff = prev_coeff
+        }
+        
       }
       
       # Save the fitted parameter estimates for each quantile
@@ -251,6 +254,7 @@ estimate_parameters <- function(quantiles_to_estimate_bulk, obs_data, model_name
                       beta_1 = new_coeff[2],
                       beta_2 = new_coeff[3],
                       beta_3 = new_coeff[4])
+      
       prev_coeff = new_coeff
     }
     results_df = bind_rows(results_df, result) 

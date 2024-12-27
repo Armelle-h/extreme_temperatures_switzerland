@@ -66,6 +66,11 @@ if(fit_true_models){
     write_csv("output/gpd_model_fits/plain_model_1_true_025.csv")
 }
 
+this_fit_mod_0 = fit_mod_0(extreme_dat_true$excess, extreme_dat_true$scale_9, c(1, -0.02, -0.19))
+this_fit_mod_1 = fit_mod_1(extreme_dat_true$excess, extreme_dat_true$scale_9, extreme_dat_true$glob_anom, c(0.6, 0.03, 0.4, -0.2))
+this_fit_mod_2 = fit_mod_2(extreme_dat_true$excess, extreme_dat_true$scale_9, extreme_dat_true$glob_anom, extreme_dat_true$altitude, c(-0.05, 0.1, 0.1, 0.5, 0, -0.1))
+this_fit_mod_3 = fit_mod_3(extreme_dat_true$excess, extreme_dat_true$scale_9, extreme_dat_true$altitude, c(2, 0, -0.1, -0.2))
+
 #THE QQPLOT
 
 obs_smoothed_quantiles = readRDS(paste0("output/plain_glob_anomaly_quant_models_num_quantiles_", num_quantiles, ".csv"))%>%

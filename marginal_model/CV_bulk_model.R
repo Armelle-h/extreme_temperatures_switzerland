@@ -182,16 +182,16 @@ run_cv = function(cv_method, obs_data, fitting_quantiles, model_name, quantiles_
 }
   
 
-job::job({run_cv("10fold", obs_data%>% select(-c(altitude, glob_anom, week, temporal_fold)), fitting_quantiles, "no_covariate", quantiles_to_estimate)}) # 1hour 12
-job::job({run_cv("10fold", obs_data%>% select(-c(altitude, glob_anom, week, temporal_fold)), fitting_quantiles, "quant", quantiles_to_estimate)})  #1h29
-job::job({run_cv("10fold", obs_data%>% select(-c(altitude, week, temporal_fold)), fitting_quantiles, "quant_glob_anom", quantiles_to_estimate)}) #1h32
-job::job({run_cv("10fold", obs_data%>% select(-c(week, temporal_fold)), fitting_quantiles, "quant_log_alt", quantiles_to_estimate)}) #1h50
-    #in total, the 4 jobs take 1h10 to run  --> expected 2h20
+job::job({run_cv("10fold", obs_data%>% select(-c(altitude, glob_anom, week, temporal_fold)), fitting_quantiles, "no_covariate", quantiles_to_estimate)}) # 
+job::job({run_cv("10fold", obs_data%>% select(-c(altitude, glob_anom, week, temporal_fold)), fitting_quantiles, "quant", quantiles_to_estimate)})  #
+job::job({run_cv("10fold", obs_data%>% select(-c(altitude, week, temporal_fold)), fitting_quantiles, "quant_glob_anom", quantiles_to_estimate)}) #
 
-job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude, glob_anom)), fitting_quantiles, "no_covariate", quantiles_to_estimate, num_spatial_folds, week_chunks)})
-job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude, glob_anom)), fitting_quantiles, "quant", quantiles_to_estimate, num_spatial_folds, week_chunks)})
-job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude)), fitting_quantiles, "quant_glob_anom", quantiles_to_estimate, num_spatial_folds, week_chunks)})
-job::job({run_cv("spatial-temporal", obs_data, fitting_quantiles, "quant_log_alt", quantiles_to_estimate, num_spatial_folds, week_chunks)})
+#job::job({run_cv("10fold", obs_data%>% select(-c(week, temporal_fold)), fitting_quantiles, "quant_log_alt", quantiles_to_estimate)}) #
+job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude, glob_anom)), fitting_quantiles, "no_covariate", quantiles_to_estimate, num_spatial_folds, week_chunks)})#55 min
+job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude, glob_anom)), fitting_quantiles, "quant", quantiles_to_estimate, num_spatial_folds, week_chunks)}) #58 min
+
+job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude)), fitting_quantiles, "quant_glob_anom", quantiles_to_estimate, num_spatial_folds, week_chunks)}) #1h7
+#job::job({run_cv("spatial-temporal", obs_data, fitting_quantiles, "quant_log_alt", quantiles_to_estimate, num_spatial_folds, week_chunks)})
 
 
 #computing the mean 

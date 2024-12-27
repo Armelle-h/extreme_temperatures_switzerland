@@ -8,14 +8,14 @@ setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
 num_quantiles = 30
 quantiles_to_estimate_bulk = seq(0.001,0.99,length.out = num_quantiles)
-obs_data = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
+obs_data = readRDS(paste0("Data/processed/plain_obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv"))
 
-legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
+legend_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")
 
 #joining obs data with the altitude 
 
 obs_data = obs_data %>%
-  left_join(legend_data %>%rename(altitude = Altitude.m.) %>% select(stn, altitude), by="stn")
+  left_join(legend_data %>% select(stn, altitude), by="stn")
 #joining obs data with global anomaly
 
 glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
