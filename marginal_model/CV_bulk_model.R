@@ -190,45 +190,44 @@ job::job({run_cv("10fold", obs_data%>% select(-c(altitude, week, temporal_fold))
 job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude, glob_anom)), fitting_quantiles, "no_covariate", quantiles_to_estimate, num_spatial_folds, week_chunks)})#55 min
 job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude, glob_anom)), fitting_quantiles, "quant", quantiles_to_estimate, num_spatial_folds, week_chunks)}) #58 min
 
-job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude)), fitting_quantiles, "quant_glob_anom", quantiles_to_estimate, num_spatial_folds, week_chunks)}) #1h7
+job::job({run_cv("spatial-temporal", obs_data%>% select(-c(altitude)), fitting_quantiles, "quant_glob_anom", quantiles_to_estimate, num_spatial_folds, week_chunks)}) #1h07
 #job::job({run_cv("spatial-temporal", obs_data, fitting_quantiles, "quant_log_alt", quantiles_to_estimate, num_spatial_folds, week_chunks)})
 
 
 #computing the mean 
 
-file_12folds_mae = read_csv("output/cv_bulk_models/mae_twelve_fold_cv.csv",
+file_12folds_mae = read_csv("output/cv_bulk_models/mae_spatio_temporal_cv.csv",
                        col_names=c("model_name", "mae"))
 
-file_12folds_rmse = read_csv("output/cv_bulk_models/rmse_twelve_fold_cv.csv",
+file_12folds_rmse = read_csv("output/cv_bulk_models/rmse_spatio_temporal_cv.csv",
                        col_names=c("model_name", "rmse"))
 
-file_12folds_quantile_mae = read_csv("output/cv_bulk_models/quantile_mae_twelve_fold_cv.csv",
+file_12folds_quantile_mae = read_csv("output/cv_bulk_models/quantile_mae_spatio_temporal_cv.csv",
                            col_names=c("model_name", "mae"))
 
-file_12folds_quantile_rmse = read_csv("output/cv_bulk_models/quantile_rmse_twelve_fold_cv.csv",
+file_12folds_quantile_rmse = read_csv("output/cv_bulk_models/quantile_rmse_spatio_temporal_cv.csv",
                             col_names=c("model_name", "rmse"))
-
-
-mean_12folds_mae = file_12folds_mae %>%
-  group_by(model_name) %>%
-  summarise(mean_MAE = mean(mae, na.rm = TRUE))
 
 mean_12folds_rmse = file_12folds_rmse %>%
   group_by(model_name) %>%
   summarise(mean_RMSE = mean(rmse, na.rm = TRUE))
 
-mean_12folds_quantile_mae = file_12folds_quantile_mae %>%
+mean_12folds_mae = file_12folds_mae %>%
   group_by(model_name) %>%
-  summarise(mean_quantile_MAE = mean(mae, na.rm = TRUE))
+  summarise(mean_MAE = mean(mae, na.rm = TRUE))
 
 mean_12folds_quantile_rmse = file_12folds_quantile_rmse %>%
   group_by(model_name) %>%
   summarise(mean_quantile_RMSE = mean(rmse, na.rm = TRUE))
 
-mean_12_fold = mean_12folds_mae %>%
-  left_join(mean_12folds_rmse, by="model_name") %>%
-  left_join(mean_12folds_quantile_mae, by="model_name") %>%
-  left_join(mean_12folds_quantile_rmse, by="model_name") 
+mean_12folds_quantile_mae = file_12folds_quantile_mae %>%
+  group_by(model_name) %>%
+  summarise(mean_quantile_MAE = mean(mae, na.rm = TRUE))
+
+mean_12_fold = mean_12folds_rmse %>%
+  left_join(mean_12folds_mae, by="model_name") %>%
+  left_join(mean_12folds_quantile_rmse, by="model_name") %>%
+  left_join(mean_12folds_quantile_mae, by="model_name") 
 
 
 

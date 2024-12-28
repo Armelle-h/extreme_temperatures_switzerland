@@ -151,13 +151,14 @@ rl_mod_1 = function(estimates_pars, rl_quantile, thresh, this_clim_scale, this_g
 # Function to compute the negative log-likelihood for Model 2
 ngll_2 = function(par){
   # Estimate scale parameter with additional climatic and geographic factors
+  
   scale_est = exp(par[1] + par[2]*clim_scale + par[3]*altitude + par[4]*glob_anom + par[5]*altitude*glob_anom) 
   shape_est = par[6]
   
   # Check for valid scale estimates
-  if(any(scale_est <= 0) || any(is.na(scale_est))) return(2^30)
-  if(any(scale_est > -1/shape_est) || any(is.na(scale_est))) return(2^30)
-  if(any((1+shape_est*excess_dat/scale_est)< 0) || any(is.na(scale_est))) return(2^30)
+  if(any(scale_est <= 0)) return(2^30)
+  if(any(scale_est > -1/shape_est)) return(2^30)
+  if(any((1+shape_est*excess_dat/scale_est)< 0)) return(2^30)
   
   # Calculate the log-likelihood
   -sum(evd::dgpd(x = excess_dat, loc=0, scale = scale_est, shape=shape_est, log=T))
@@ -185,9 +186,9 @@ ngll_2_fix_shape = function(par){ #altitude is set globally to log(this altitude
   # Estimate scale parameter with additional climatic and geographic factors
   scale_est = exp(par[1] + par[2]*clim_scale + par[3]*altitude + par[4]*glob_anom + par[5]*altitude*glob_anom) 
   # Check for valid scale estimates
-  if(any(scale_est <= 0) || any(is.na(scale_est))) return(2^30)
-  if(any(scale_est > -1/shape_est) || any(is.na(scale_est))) return(2^30)
-  if(any((1+shape_est*excess_dat/scale_est)< 0) || any(is.na(scale_est))) return(2^30)
+  if(any(scale_est <= 0) ) return(2^30)
+  if(any(scale_est > -1/shape_est) ) return(2^30)
+  if(any((1+shape_est*excess_dat/scale_est)< 0)) return(2^30)
   
   # Calculate the log-likelihood
   -sum(evd::dgpd(x = excess_dat, loc=0, scale = scale_est, shape=shape_est, log=T))
@@ -231,7 +232,7 @@ ngll_3 = function(par){
   # Check for valid scale estimates
   if(any(scale_est <= 0)) return(2^30)
   if(any(scale_est > -1/shape_est)) return(2^30)
-  if(any((1+shape_est*excess_dat/scale_est)< 0)) return(2^30)
+  if(any((1+shape_est*excess_dat/scale_est)< 0) ) return(2^30)
   
   # Calculate the log-likelihood
   -sum(evd::dgpd(x = excess_dat, loc=0, scale = scale_est, shape=shape_est, log=T))

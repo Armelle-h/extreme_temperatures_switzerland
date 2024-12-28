@@ -10,7 +10,7 @@
 gc()
 rm(list = ls())
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
-source('gpd_models.R')
+source('marginal_model/gpd_models.R')
 
 library(tidyverse)
 library(spatialsample)
@@ -129,7 +129,7 @@ get_metrics = function(orig_dat, excess, quant, threshold,  pred_scale, pred_sha
 
 run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, num_spatial_folds = "NA", week_chunks="NA"){
   
-  source('gpd_models.R')
+  source('marginal_model/gpd_models.R')
   
   if(cv_method == "spatial-temporal"){
     
@@ -158,10 +158,10 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
         train = extreme_data %>%
           anti_join(test)
         
-        this_fit_mod_0 = fit_mod_0(train$excess, train$scale_9)
-        this_fit_mod_1 = fit_mod_1(train$excess, train$scale_9, train$glob_anom)
-        this_fit_mod_2 = fit_mod_2(train$excess, train$scale_9, train$glob_anom, train$altitude)
-        this_fit_mod_3 = fit_mod_3(train$excess, train$scale_9, train$altitude)
+        this_fit_mod_0 = fit_mod_0(train$excess, train$scale_9, c(0.8, -0.05, -0.1))
+        this_fit_mod_1 = fit_mod_1(train$excess, train$scale_9, train$glob_anom, c(0.8, -0.05, 0.001, -0.1))
+        this_fit_mod_2 = fit_mod_2(train$excess, train$scale_9, train$glob_anom, train$altitude, c(0.03, -0.03,  0.08,  1, -0.08, -0.2))
+        this_fit_mod_3 = fit_mod_3(train$excess, train$scale_9, train$altitude, c(0.5, 0.01, 0.01, -0.1))
         
         # calculate scale parameter on climate grid
         pred_0 = my_predict_0(this_fit_mod_0, test$scale_9)

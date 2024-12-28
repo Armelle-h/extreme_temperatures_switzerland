@@ -41,12 +41,12 @@ obs_data = obs_data %>%
 obs_smoothed_quantiles = readRDS(paste0("output/glob_anomaly_quant_models_num_quantiles_", num_quantiles, ".csv"))%>%
   select(- tau_to_temp)
 
-marg_mod = 'mod_1'
+marg_mod = 'mod_2'
 
-this_fit_mod = read_csv("output/gpd_model_fits/model_1_true.csv") %>%
+this_fit_mod = read_csv("output/gpd_model_fits/model_2_true.csv") %>%
   unlist() %>% as.numeric
 
-pred <- my_predict_1(this_fit_mod, obs_data$scale_9, obs_data$glob_anom) #change according to model !!!!!!!!!!
+pred <- my_predict_2(this_fit_mod, obs_data$scale_9, obs_data$glob_anom, obs_data$altitude) #change according to model !!!!!!!!!!
 
 
 obs_data$scale = pred$scale
@@ -168,41 +168,3 @@ plt = gridExtra::grid.arrange(bulk_and_tail %>%
                                               gp = gpar(col = "black", fontsize = 12)),
                               bottom = textGrob("Ideal quantiles", rot = 0, vjust = 0, 
                                                 gp = gpar(col = "black", fontsize = 12)))
-
-
-
-library(sf)
-library(rnaturalearth)
-
-my_pal = c( 
-  '#062c30', # extra dark 
-  '#003f5c',
-  '#2f4b7c',
-  '#665191',
-  '#a05195',
-  '#d45087',
-  '#f95d6a',
-  '#ff7c43',
-  '#ffa600')
-
-
-switzerland <- ne_countries(country = "Switzerland", scale = "medium", returnclass = "sf")
-
-switzerland <- st_transform(switzerland, crs = 4326)
-
-T = standardised_qq %>%select(stn, exp)%>%group_by(stn)%>% mutate(max_exp= max(exp) )%>% ungroup %>% inner_join(legend_data%>%select(stn, longitude, latitude) , by="stn")
-
-#T = standardised_qq %>%select(id, excess, exp) %>% inner_join(I, by="id")
-
-T %>%  #the weird position of the points comes from the fact that we're selecting only every 10 points to be plot.
-  filter(max_exp<30) %>% 
-  ggplot()+
-  geom_point(aes(longitude, latitude, col = max_exp), size = 3)+
-  coord_map()+
-  theme_minimal()+
-  geom_sf(data = switzerland, alpha = 0, col = 'black')+
-  ggplot2::scale_color_gradientn(colors = my_pal)+
-  scale_x_continuous(breaks= -c(10, 8, 6))+
-  theme_minimal(12)+
-  labs(col = 'exp', x = '', y = '')
-
