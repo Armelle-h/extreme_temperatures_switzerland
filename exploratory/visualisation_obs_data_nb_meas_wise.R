@@ -1,10 +1,11 @@
-setwd("C:/Users/HOURS/Desktop/PDM/Code_R")
+#visualising weather stations and their associated number of measurements
 
 gc()
 rm(list = ls())
 library(rnaturalearth) #library for map of switzerland
 library(tidyverse)
 library(sf)
+setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
 data<- read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv", header=TRUE)
 
@@ -23,7 +24,7 @@ merged_data <- legend %>%
 points_sf <- st_as_sf(merged_data, coords = c("longitude", "latitude"), crs = 4326)
 
 ggplot(data = switzerland) +
-  geom_sf(fill = "lightgrey", color = "black") +  # Plot Switzerland
+  geom_sf(fill = "darkgrey", color = "black") +  # Plot Switzerland
   geom_sf(data = points_sf, aes(size = count, color = count), alpha=1.0) +  # Plot points sized by measurements
   scale_size_continuous(range = c(1, 4)) +  # Adjust size range
   scale_color_viridis_c(name = "Number of Measurements", option = "viridis") +

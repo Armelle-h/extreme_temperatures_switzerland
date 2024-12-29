@@ -1,5 +1,4 @@
-#corresponds to Figure 5 in the paper
-
+#In the file, we plot the 100 year return level 
 
 gc()
 rm(list=ls())
@@ -26,44 +25,24 @@ my_pal = c(
   '#ff7c43',
   '#ffa600')
 
-
-#not doing bootstrap 
-
-model_fits = read_csv("output/gpd_model_fits/model_1_true.csv", 
-                      col_names = c('bts', 'b0', 'b1', 'b2', 'xi')) #to change
-marg_mod = "mod_1"
+marg_mod = "mod_2"
 num_quantiles = 30
 
 id_lon_lat = read.csv("Data/id_lon_lat_correspondance.csv")
 
-clim_date_w_quantile_mod = readRDS(paste0("output/quant_models_clim_num_", marg_mod, "_quantiles_",num_quantiles,".csv")) %>%
+clim_date_w_quantile_mod = readRDS(paste0("output/glob_anomaly_quant_models_clim_num_quantiles_",num_quantiles,".csv")) %>%
   dplyr::select(-c(quantile, value)) %>% filter(year %in% c(1971, 2022)) #the filter by years not realy needed, already filtered
 
 grid_pred = clim_date_w_quantile_mod %>%
   left_join(id_lon_lat, by = "id") %>%
   dplyr::select(id, longitude, latitude, year, threshold_9, thresh_exceedance_9, glob_anom) %>%
-  left_join(read_csv('Data/Climate_data/clim_scale_grid_gpd_model.csv')) 
-
-#This is "if I have bootstraps "
-grid_pred$rl_qnt = 1 - (1/grid_pred$thresh_exceedance_9)/(100*92) 
-
-#recheck, I want just the parameters
-this_fit_pars = read_csv(paste0("Data/processed/glob_anomaly_quantile_model_fit_pars_num_quantiles_",num_quantiles,".csv"),
-                         col_names = c('tau', 'beta_0', 'beta_1', 'beta_2'))
-this_scale_fit = my_predict_1(this_fit_pars, grid_pred$scale_9, grid_pred$glob_anom)
-#recheck def of rl_mod_1 
-this_rl_fit = rl_mod_1(this_fit_pars, grid_pred$rl_qnt, grid_pred$threshold_9, grid_pred$scale_9, grid_pred$glob_anom)
-
-#When I don't have bootstraps
-grid_pred = clim_date_w_quantile_mod %>%
-  left_join(id_lon_lat, by = "id") %>%
-  dplyr::select(id, longitude, latitude, year, threshold_9, thresh_exceedance_9, glob_anom) %>%
-  left_join(read_csv('Data/Climate_data/clim_scale_grid_gpd_model.csv'))
+  left_join(read_csv('Data/Climate_data/clim_scale_grid_gpd_model.csv'))%>%
+  left_join(read_csv('Data/clim_id_altitude_correspondance.csv'), by = "id")
 
 true_change = grid_pred
 true_change$rl_qnt = 1 - (1/grid_pred$thresh_exceedance_9)/(100*92)
-true_change$rl = rl_mod_1((read_csv("output/gpd_model_fits/model_1_true.csv") %>% unlist %>% as.numeric),
-                           true_change$rl_qnt, true_change$threshold_9, true_change$scale_9, true_change$glob_anom)
+true_change$rl = rl_mod_2((read_csv("output/gpd_model_fits/model_2_true.csv") %>% unlist %>% as.numeric),
+                           true_change$rl_qnt, true_change$threshold_9, true_change$scale_9, true_change$glob_anom, true_change$altitude     )
 
 #corresponds to Figure 5 in the paper
 rl_plot = gridExtra::grid.arrange(true_change %>%

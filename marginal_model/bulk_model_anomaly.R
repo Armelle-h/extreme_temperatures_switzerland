@@ -305,4 +305,4 @@ lambda_thresh_ex %>%
 # Merge lambda results with the main model data and save
 clim_date_w_quantile_mod %>% 
   left_join(lambda_thresh_ex) %>%
-  saveRDS(paste0("output/glob_anomaly_quant_models_clim_num_mod_1_quantiles_",num_quantiles,".csv"))
+  saveRDS(paste0("output/glob_anomaly_quant_models_clim_num_quantiles_",num_quantiles,".csv"))

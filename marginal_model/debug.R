@@ -1,106 +1,68 @@
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
-source('marginal_model/gpd_models.R')
-
 library(tidyverse)
-library(spatialsample)
-library(scoringRules)
-library(job)
 library(sf)
 
-# ========  ========  Global parameters ========
 
-# ========  ========  Read in data  ========  ========
-# Observational data with covariates
+I = read.csv("Data/id_lon_lat_correspondance.csv")
 
-#new code
-obs_data = vroom::vroom("Data/Observed_data/obs_data_gpd_model.csv")
+my_coords <- I %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)  # WGS84 (EPSG:4326)
 
-legend_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
+# Transform the coordinates to UTM Zone 29N (EPSG:32629)
+proj_cords <- st_transform(my_coords, crs = 32629)
 
-#joining obs data with the altitude 
-obs_data = obs_data %>%
-  left_join(legend_data %>% select(stn, Altitude.m.), by="stn")%>%
-  rename(altitude = Altitude.m.)
+# Extract the transformed coordinates, expressed in meters
+proj_coords <- st_coordinates(proj_cords) 
 
-glob_anomaly = read.csv("Data/global_tp_anomaly_JJA.csv")
+# Add projected coordinates and an ID column to clim_data, expressed in kilometers
+I$longitude_proj <- proj_coords[, 1] / 1000
+I$latitude_proj <- proj_coords[, 2] / 1000
 
-glob_anomaly_reshaped = glob_anomaly %>%
-  select(c("year", "JJA"))%>%
-  rename(glob_anom = JJA)
 
-threshold_9_df = vroom::vroom("Data/processed/1971_2022_JJA_obs_data_bulk_model.csv")%>%
-  dplyr::select(threshold_9, id)%>%
+legend = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv") %>%
+  select(c("stn", "longitude", "latitude"))
+
+my_coords <- legend %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)  # WGS84 (EPSG:4326)
+
+# Transform the coordinates to UTM Zone 29N (EPSG:32629)
+proj_cords <- st_transform(my_coords, crs = 32629)
+
+# Extract the transformed coordinates, expressed in meters
+proj_coords <- st_coordinates(proj_cords) 
+
+# Add projected coordinates and an ID column to clim_data, expressed in kilometers
+legend$longitude_proj <- proj_coords[, 1] / 1000
+legend$latitude_proj <- proj_coords[, 2] / 1000
+
+obs_data = read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv") %>%
+  left_join(legend %>% select(stn, longitude_proj, latitude_proj), by = "stn") %>%
+  select(stn, id, longitude_proj, latitude_proj) %>%
   unique()
 
-obs_data = obs_data %>% 
-  mutate(year = year(date), week=week(date)) %>% #week is used for the temporal cross validation
-  left_join(glob_anomaly_reshaped, by = "year")%>%
-  left_join(threshold_9_df, by="id")
+#creating column where the location id will be saved
+obs_data$id_proj <- NA
 
-# onlykeep full years for cv
-obs_data <- obs_data %>%
-  group_by(year, stn) %>%
-  summarise(n = n()) %>%
-  arrange(n) %>%
-  filter(n == 92) %>% 
-  left_join(obs_data) %>%
-  ungroup()
+#finding the correct id by associating the id of the pair latitude-longitude that is closest
+#according to the euclidean distance
 
-
-# -------- CREATE CV Folds
-set.seed(51964)
-
-obs_sites = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv") %>%
-  select(stn, longitude, latitude)
-
-obs_sites_sf = st_as_sf(obs_sites, coords = c("longitude", "latitude"), crs = 4326)
-#obs_sites_sf <- st_set_geometry(obs_sites_sf, "coord_pts")
-
-#splits data based on coordinates
-num_spatial_folds  = 4
-clustered = spatial_clustering_cv(obs_sites_sf, v = num_spatial_folds)
-
-spatial_folds = c()
-for(i in seq(num_spatial_folds)){
-  spatial_folds = rbind(spatial_folds, 
-                        assessment(clustered$splits[i][[1]]) %>% 
-                          mutate(longitude = st_coordinates(geometry)[, 1],
-                                 latitude = st_coordinates(geometry)[, 2]) %>%
-                          dplyr::select(stn, longitude, latitude) %>% 
-                          st_drop_geometry %>% 
-                          unique %>%
-                          mutate(spatial_fold = i))
+# Function to compute the Euclidean distance between two points
+euclidean_distance <- function(x1, y1, x2, y2) {
+  sqrt((x1 - x2)^2 + (y1 - y2)^2)
 }
 
-week_chunks = list(c(22,25,28,31,34),
-                   c(23,26,29,32,35),
-                   c(24,27,30,33)) #22 to 35 correspond to summer weeks
-
-obs_data$temporal_fold = 123456789
-obs_data[obs_data$week %in% week_chunks[[1]],]$temporal_fold=1
-obs_data[obs_data$week %in% week_chunks[[2]],]$temporal_fold=2
-obs_data[obs_data$week %in% week_chunks[[3]],]$temporal_fold=3
-
-extreme_data = obs_data %>%
-  mutate(excess = maxtp - threshold_9) %>%
-  filter(excess > 0) %>%
-  left_join(spatial_folds, by="stn") %>%
-  group_by(year, stn) %>%
-  group_map(~{
-    
-    .x %>%
-      mutate(quant = rank(excess)/(length(excess)+1)) #defining quant 
-    
-  },.keep=T) %>%
-  plyr::rbind.fill() %>%
-  as_tibble()
-
-
-list_par = list(c(0.8, -0.05, 0.001, -0.1), c(0.5, 0.01, 0.01, -0.1), c(0.1, 0.01, 0.1, -0.1))
-
-for ( par in list_par){
-  par = c(0.5, -0.01, 0.04, -0.2)
-  opt_par = fit_mod_3(extreme_data$excess, extreme_data$scale_9, extreme_data$altitude, par)
-  print(opt_par)
-  print(ngll_3(opt_par))
+# Loop over each row in obs_loc
+for (i in 1:nrow(obs_data)) {
+  # Extract the current pair from obs_loc
+  x1 <- obs_data$longitude_proj[i]
+  y1 <- obs_data$latitude_proj[i]
+  
+  # Compute the distances between this pair and all pairs in id_loc
+  distances <- mapply(euclidean_distance, x1, y1, I$longitude_proj, I$latitude_proj)
+  
+  # Find the index of the minimum distance
+  min_index <- which.min(distances)
+  
+  # Assign the corresponding value from id_loc$id to obs_loc
+  obs_data$id_proj[i] <- I$id[min_index]
 }

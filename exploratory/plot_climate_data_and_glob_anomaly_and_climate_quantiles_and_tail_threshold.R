@@ -83,7 +83,7 @@ ggplot(clim_quantile_loc, aes(x = longitude, y = latitude, color = quantile_20))
   geom_point(size = 1, alpha = 0.6) +  # Adjust size and transparency as needed
   scale_color_viridis_c() +  # Optional: For color scale
   labs(x = "Longitude", y = "Latitude", color = "°C") +
-  ggtitle("64.9th quantile") +
+  ggtitle("0.65th quantile") +
   theme_minimal()+
   theme(plot.title = element_text(hjust = 0.5))
 

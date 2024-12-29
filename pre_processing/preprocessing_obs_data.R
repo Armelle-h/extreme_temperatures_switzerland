@@ -41,18 +41,43 @@ library(tidyverse)
 #joining the location id as defined in climate data
 
 obs_file <- read.csv("Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv")#read.csv("Data/Observed_data/1971_2023_JJA_obs_data.csv")
-legend = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv") %>%
-  select(c("stn", "longitude", "latitude"))
+legend = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")
+
+my_coords <- legend %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)  # WGS84 (EPSG:4326)
+
+# Transform the coordinates to UTM Zone 29N (EPSG:32629)
+proj_cords <- st_transform(my_coords, crs = 32629)
+
+# Extract the transformed coordinates, expressed in meters
+proj_coords <- st_coordinates(proj_cords) 
+
+# Add projected coordinates and an ID column to clim_data, expressed in kilometers
+legend$longitude_proj <- proj_coords[, 1] / 1000
+legend$latitude_proj <- proj_coords[, 2] / 1000
 
 obs_file = obs_file %>%
   select(-id)%>%
-  left_join(legend, by = "stn")
+  left_join(legend %>% select(stn, longitude_proj, latitude_proj), by = "stn")
 
 
 #loading the location id correspondance file
 id_loc = read.csv("Data/id_lon_lat_correspondance.csv")
 
-obs_loc = unique(obs_file[, c("longitude", "latitude")])
+my_coords <- id_loc %>%
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326)  # WGS84 (EPSG:4326)
+
+# Transform the coordinates to UTM Zone 29N (EPSG:32629)
+proj_cords <- st_transform(my_coords, crs = 32629)
+
+# Extract the transformed coordinates, expressed in meters
+proj_coords <- st_coordinates(proj_cords) 
+
+# Add projected coordinates and an ID column to clim_data, expressed in kilometers
+id_loc$longitude_proj <- proj_coords[, 1] / 1000
+id_loc$latitude_proj <- proj_coords[, 2] / 1000
+
+obs_loc = unique(obs_file[, c("longitude_proj", "latitude_proj")])
 
 #creating column where the location id will be saved
 obs_loc$id <- NA
@@ -69,11 +94,11 @@ euclidean_distance <- function(x1, y1, x2, y2) {
 # Loop over each row in obs_loc
 for (i in 1:nrow(obs_loc)) {
   # Extract the current pair from obs_loc
-  x1 <- obs_loc$longitude[i]
-  y1 <- obs_loc$latitude[i]
+  x1 <- obs_loc$longitude_proj[i]
+  y1 <- obs_loc$latitude_proj[i]
   
   # Compute the distances between this pair and all pairs in id_loc
-  distances <- mapply(euclidean_distance, x1, y1, id_loc$longitude, id_loc$latitude)
+  distances <- mapply(euclidean_distance, x1, y1, id_loc$longitude_proj, id_loc$latitude_proj)
   
   # Find the index of the minimum distance
   min_index <- which.min(distances)
@@ -83,8 +108,8 @@ for (i in 1:nrow(obs_loc)) {
   obs_loc$dist[i] <- min(distances)
 }
 
-obs_file_with_id <- merge(obs_file, obs_loc[, c("longitude", "latitude", "id", "dist")], 
-                          by = c("longitude", "latitude"), 
+obs_file_with_id <- merge(obs_file, obs_loc[, c("longitude_proj", "latitude_proj", "id", "dist")], 
+                          by = c("longitude_proj", "latitude_proj"), 
                           all.x = TRUE)
 
 obs_file_with_id = obs_file_with_id %>%
@@ -212,6 +237,4 @@ legend_filtered <- legend %>%
 write.csv(legend_filtered, "Data/Observed_data/1971_2022_JJA_obs_legend.csv", row.names = FALSE)
 
 write.csv(obs_data_filtered, "Data/Observed_data/1971_2022_JJA_obs_data_loc_id.csv", row.names = FALSE)
-
-
 

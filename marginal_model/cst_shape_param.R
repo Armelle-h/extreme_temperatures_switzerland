@@ -199,7 +199,7 @@ for(i in obs_grid$stn){
   model_fit = estimate_scale_fixed_shape(this_extm_irel, optimal_shape) 
   loglik_fixed_xi = c(loglik_fixed_xi, model_fit$value)
   
-  if (i %in% c("NAS", "CBS", "ROM", "MAE", "PERGEM", "GEN")){
+  if (i %in% c("WSLLEB", "NAS", "ROM", "MAE", "INNEBI", "KAGOD", "PERGEM", "GEN")){
     # --- free shape
     loglik_free_xi = c(loglik_free_xi, (evd::fpot(this_extm_irel, threshold = 0, std.err = FALSE) %>% logLik %>% as.numeric()))
     std_errors_scale = c(std_errors_scale, NA)
