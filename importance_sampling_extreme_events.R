@@ -7,7 +7,7 @@ library(tidyverse)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 source('marginal_model/gpd_models.R')
 
-marg_mod = "mod_0"
+marg_mod = "mod_1"
 
 nu = 0.12
 nu_val = "012"

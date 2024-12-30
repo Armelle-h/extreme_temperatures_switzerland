@@ -1,4 +1,4 @@
-#In the file, we plot the 100 year return level 
+#In this file, we plot the 100 year return level 
 
 gc()
 rm(list=ls())
@@ -44,12 +44,11 @@ true_change$rl_qnt = 1 - (1/grid_pred$thresh_exceedance_9)/(100*92)
 true_change$rl = rl_mod_2((read_csv("output/gpd_model_fits/model_2_true.csv") %>% unlist %>% as.numeric),
                            true_change$rl_qnt, true_change$threshold_9, true_change$scale_9, true_change$glob_anom, true_change$altitude     )
 
-#corresponds to Figure 5 in the paper
 rl_plot = gridExtra::grid.arrange(true_change %>%
                                     filter(year == 2022) %>%
                                     dplyr::select(longitude, latitude, id, rl) %>%
                                     ggplot()+
-                                    geom_point(aes(longitude, latitude, col = rl))+
+                                    geom_point(aes(longitude, latitude, col = rl), size = 0.7)+
                                     geom_sf(data = switzerland, col = 'black', alpha = 0)+
                                     scale_color_gradientn( colours=my_pal)+
                                     labs(col = expression(paste('°C')))+
@@ -72,7 +71,7 @@ rl_plot = gridExtra::grid.arrange(true_change %>%
                                                 dplyr::select(longitude, latitude, id, rl_100_2022)) %>%
                                     mutate(rl_100_diff = rl_100_2022 - rl_100_1971) %>%
                                     ggplot()+
-                                    geom_point(aes(longitude, latitude, col = rl_100_diff))+
+                                    geom_point(aes(longitude, latitude, col = rl_100_diff), size = 0.7)+
                                     geom_sf(data = switzerland, col = 'black', alpha = 0)+
                                     scale_color_gradientn( colours=my_pal)+
                                     labs(col = expression(paste(nabla, '°C')))+
