@@ -219,10 +219,10 @@ run_cv = function(cv_method, thresh_qnt, obs_data, spatial_folds, get_metrics, n
       test = extreme_data %>% filter(random_fold == i)
       train = extreme_data %>% filter(random_fold != i)
       
-      this_fit_mod_0 = fit_mod_0(train$excess, train$scale_9)
-      this_fit_mod_1 = fit_mod_1(train$excess, train$scale_9, train$glob_anom)
-      this_fit_mod_2 = fit_mod_2(train$excess, train$scale_9, train$glob_anom, train$altitude)
-      this_fit_mod_3 = fit_mod_3(train$excess, train$scale_9, train$altitude)
+      this_fit_mod_0 = fit_mod_0(train$excess, train$scale_9, c(0.8, -0.05, -0.1))
+      this_fit_mod_1 = fit_mod_1(train$excess, train$scale_9, train$glob_anom, c(0.8, -0.05, 0.001, -0.1))
+      this_fit_mod_2 = fit_mod_2(train$excess, train$scale_9, train$glob_anom, train$altitude, c(0.03, -0.03,  0.08,  1, -0.08, -0.2))
+      this_fit_mod_3 = fit_mod_3(train$excess, train$scale_9, train$altitude, c(0.5, 0.01, 0.01, -0.1))
       
       # calculate scale parameter on climate grid
       pred_0 = my_predict_0(this_fit_mod_0, test$scale_9)

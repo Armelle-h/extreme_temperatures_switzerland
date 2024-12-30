@@ -3,10 +3,10 @@ library(evd)
 
 # Define multiple sets of parameters (scale and shape) for the GPD
 params <- list(
-  list(scale = 2, shape = 0.5),
-  list(scale = 2, shape = -0.5),
-  list(scale = 2, shape = 0.3),
-  list(scale = 2, shape = -0.3)
+  list(scale = 1, shape = -0.1), #mod 0
+  list(scale = 1, shape = -0.2), #mod 1
+  list(scale = 1, shape = -0.3), #mod 2
+  list(scale = 1, shape = -0.4) #mod 3
 )
 
 # Define the x-axis values over which to compute the density

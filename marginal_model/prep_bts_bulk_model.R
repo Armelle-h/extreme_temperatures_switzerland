@@ -55,10 +55,10 @@ if(standardise_data){
     mutate(excess = maxtp - threshold_9) %>%
     filter(excess > 0)
   
-  this_fit_mod_0 = fit_mod_0(extreme_data$excess, extreme_data$scale_9)
-  this_fit_mod_1 = fit_mod_1(extreme_data$excess, extreme_data$scale_9, extreme_data$glob_anom)
-  this_fit_mod_2 = fit_mod_2(extreme_data$excess, extreme_data$scale_9, extreme_data$glob_anom, extreme_data$altitude)
-  this_fit_mod_3 = fit_mod_3(extreme_data$excess, extreme_data$scale_9, extreme_data$altitude)
+  this_fit_mod_0 = fit_mod_0(extreme_data$excess, extreme_data$scale_9, c(0.8, -0.05, -0.1))
+  this_fit_mod_1 = fit_mod_1(extreme_data$excess, extreme_data$scale_9, extreme_data$glob_anom, c(0.8, -0.05, 0.001, -0.1))
+  this_fit_mod_2 = fit_mod_2(extreme_data$excess, extreme_data$scale_9, extreme_data$glob_anom, extreme_data$altitude, c(0.03, -0.03,  0.08,  1, -0.08, -0.2))
+  this_fit_mod_3 = fit_mod_3(extreme_data$excess, extreme_data$scale_9, extreme_data$altitude, c(0.5, 0.01, 0.01, -0.1))
   
   #freeing memory
   rm('extreme_data')
@@ -114,22 +114,15 @@ if(standardise_data){
       res_3 = rep(NA, length(data))
       
       for(i in seq(length(data))){
-        if(data[i] > threshold[i]){ # transform tail      #if we're in the tail of the distribution
-          #if my_lambda[i] is NA then the whole expression will be NA
+        #we're in the tail of the distribution
+        if(data[i] > threshold[i]){    
           res_0[i] = 1 - (my_lambda[i]) *(1+shpe_0[i]* ((data[i] - threshold[i])/scle_0[i]))^(-1/(shpe_0[i]))
           res_1[i] = 1 - (my_lambda[i]) *(1+shpe_1[i]* ((data[i] - threshold[i])/scle_1[i]))^(-1/(shpe_1[i]))
           res_2[i] = 1 - (my_lambda[i]) *(1+shpe_2[i]* ((data[i] - threshold[i])/scle_2[i]))^(-1/(shpe_2[i]))
           res_3[i] = 1 - (my_lambda[i]) *(1+shpe_3[i]* ((data[i] - threshold[i])/scle_3[i]))^(-1/(shpe_3[i]))
         }else{ 
-          #if we're in the main body of the distribution, can use temp_to_tau functions and we don't have different candidate models 
-          #for the body
-          candidate_value = .x$temp_to_tau[i][[1]](data[i])
-          
-          if (candidate_value<0 | candidate_value>1) {
-            candidate_value = NA
-          }
-          
-          res_0[i] = candidate_value
+          #we're in the body of the distribution
+          res_0[i] = .x$temp_to_tau[i][[1]](data[i])
           res_1[i] = res_0[i]
           res_2[i] = res_0[i]
           res_3[i] = res_0[i]
@@ -148,30 +141,20 @@ if(standardise_data){
   obs_data = obs_data  %>%
     select(-c(temp_to_tau))
   
-  #2440 rows that have NA out of 603 866 rows
-  
   obs_data$unif_0[obs_data$unif_0 < 0] = 0 
   obs_data$unif_1[obs_data$unif_1 < 0] = 0
   obs_data$unif_2[obs_data$unif_2 < 0] = 0
   obs_data$unif_3[obs_data$unif_3 < 0] = 0
   
   #not awesome bypass but should do the trick 
-  obs_data$unif_0[obs_data$unif_0 == 1] = 0.9999999
-  obs_data$unif_1[obs_data$unif_1 == 1] = 0.9999999
-  obs_data$unif_2[obs_data$unif_2 == 1] = 0.9999999
-  obs_data$unif_3[obs_data$unif_3 == 1] = 0.9999999
+  obs_data$unif_0[obs_data$unif_0 > 0.9999999] = 0.9999999
+  obs_data$unif_1[obs_data$unif_1 > 0.9999999] = 0.9999999
+  obs_data$unif_2[obs_data$unif_2 > 0.9999999] = 0.9999999
+  obs_data$unif_3[obs_data$unif_3 > 0.9999999] = 0.9999999
   
   obs_data %>%
     saveRDS(paste0("Data/processed/standardised_data_for_bootstrapping_num_quantiles_", num_quantiles))
 }
-
-#Sanity check if unif_0,..., unif_3 does have values in (0,1) 
-
-invalid_values <- obs_data %>%
-  filter(if_any(c(unif_0, unif_1, unif_2, unif_3), ~ . < 0 | . > 1))
-
-print(nrow(invalid_values))
-
 
 #END OF FIXED PART
 
@@ -217,16 +200,9 @@ covars = obs_data %>%
                 "shape_2",
                 "shape_3") %>% unique()
 
-#Defined bts_rng and change the value of i, or can do a for loop  
+# i takes values in 1  21  41  61  81 
 
-#batch_size = 20                             -- we have 200 bts
-#for(i in seq(1, 200, by = batch_size)){
-#  job::job({generate_bts(seq(i,(i+batch_size-1)))})
-#}
-
-# i takes values in 1  21  41  61  81 101 121 141 161 181    (need to do 10 times the code below)
-
-i = 181
+i = 1
 
 batch_size = 20
 bts_rng = seq(i,(i+batch_size-1))
