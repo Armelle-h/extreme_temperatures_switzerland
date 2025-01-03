@@ -6,8 +6,8 @@ library(data.table)
 library(evd)
 
 #spatial_threshold = readRDS("Data/spatial_threshold.rds")
-spatial_threshold = 8
-
+spatial_threshold = 6
+  
 filter_id = 10
 
 num_quantiles = 30
@@ -95,6 +95,8 @@ I_plain = read.csv("Data/plain_id_lon_lat_correspondance.csv")
 I_date = read.csv("Data/id_date_correspondance.csv")%>%
   mutate(year = lubridate::year(date))
 
+#estimating cr for the climate data
+  
 for (i in seq_along(files)){
   
   clim_data = fread(files[[i]])%>%
@@ -161,7 +163,7 @@ for (i in seq_along(files)){
     as_tibble() 
   
 
-  #would be to heavy to save as a list so doing cr
+  #would be too heavy to save as a list so doing cr
   
   
   extreme_dates = clim_data_standardised %>%

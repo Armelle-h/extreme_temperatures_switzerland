@@ -1,11 +1,5 @@
 #Model fitting using a likelihood-based approach
 
-
-#Carefull !! Sometimes the covariance matrix is singular because I was considering stations too close to each other. 
-#Should I do some additional preprocessing?
-
-#Should also differenciate in the file name if we fit with robust or not !!!!
-
 rm(list=ls())
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)
@@ -15,6 +9,9 @@ library(foreach)
 library(sf)
 
 marg_mod = "mod_0"
+
+nu_val = 0.12
+nu_name = "012"
 
 #defining the likelihood function based on pairwise relationships between locations 
 #computes the loglikelihood for a single dataset/realization of the data
@@ -85,7 +82,7 @@ ngll = function(pars){
         return (2^100)
       } 
       
-      nu = 0.12
+      nu = pars[3]
       res = rep(NA, length(h))
       res[h == 0] = 0
       res[h != 0] = alpha*(1 - ((((h[h != 0] /beta)^nu) * besselK(x = (h[h != 0] / beta), nu = nu))/(gamma(nu)*2^(nu - 1))))
@@ -113,12 +110,14 @@ data_for_rpareto = readRDS(paste0("Data/processed/data_for_rpareto/true/robust_p
 
 .GlobalEnv$stat <- TRUE 
 
-fit <<- optimx::optimx(par = c(0.5, 0.5), fn = ngll ,hessian = F, method = 'Nelder-Mead') 
+fit <<- optimx::optimx(par = c(0.5, 0.5, 0.1), fn = ngll ,hessian = F, method = 'Nelder-Mead') 
+
+
+
+
+
+
 
 # method = 'L-BFGS-B'
 tibble(fit$p1, fit$p2) %>%
-  write_csv(paste0("output/rpareto_model_fits/robust_plain_true_rpareto_fits_model_", marg_mod, ".csv"), append = T)
-
-
-tibble(0.4797453, 85.4204726  ) %>%
-  write_csv(paste0("output/rpareto_model_fits/robust_plain_nu_012_true_rpareto_fits_model_", marg_mod, ".csv"), append = T)
+  write_csv(paste0("output/rpareto_model_fits/robust_plain_nu_", nu_name,"_true_rpareto_fits_model_", marg_mod, ".csv"), append = T)

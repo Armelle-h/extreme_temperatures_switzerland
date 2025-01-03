@@ -223,7 +223,7 @@ obs_grid$LL_alt_std_error_shape = std_errors_shape
 
 obs_grid %>%
   ggplot()+
-  geom_point(aes(longitude, latitude, col = LL_ratio), alpha = 0.5, size = 2.5)+ #size = 2.5
+  geom_point(aes(longitude, latitude, col = LL_ratio), alpha = 0.5)+ #size = 2.5
   coord_map()+
   theme_minimal()+
   geom_sf(data = switzerland, alpha = 0, col = 'black')+

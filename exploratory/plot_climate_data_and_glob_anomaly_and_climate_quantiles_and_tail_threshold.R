@@ -11,14 +11,14 @@ library(tidyverse)
 
 #plotting first of August 2018
 
-clim_data = read.csv("Data/Climate_data/2018_2022_JJA_climate_data.csv")
+clim_data = read.csv("Data/Climate_data/By_year/2018_2022_JJA_climate_data.csv")
 
 lon_lat_corres = read.csv("Data/id_lon_lat_correspondance.csv")
 
 date_id_corres =  read.csv("Data/id_date_correspondance.csv")
 
-id_2018 = date_id_corres %>%
-  filter(date == "2018-08-01") %>%
+id_2020 = date_id_corres %>%
+  filter(date == "2020-08-01") %>%
   pull(date_id)
 
 clim_data_lon_lat= clim_data %>%
@@ -27,7 +27,7 @@ clim_data_lon_lat= clim_data %>%
 #clim_data_lon_lat$date <- as.Date(clim_data_lon_lat$date)
 
 clim_data_lon_lat = clim_data_lon_lat %>%
-  filter(date_id == id_2018)
+  filter(date_id == id_2020)
 
 ggplot(clim_data_lon_lat, aes(x = longitude, y = latitude, color = maxtp)) +
   geom_point(size = 1, alpha = 0.6) +  # Adjust size and transparency as needed

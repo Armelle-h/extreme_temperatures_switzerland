@@ -21,7 +21,7 @@ source('marginal_model/gpd_models.R')
   
   for(b in bts_rng){
     
-    if(b<=29){next}
+    if(b<=75){next}
     print(b)
     
     bts_data <- rlang::duplicate(obs_data, shallow = FALSE) # make a deep copy
@@ -152,5 +152,5 @@ source('marginal_model/gpd_models.R')
       plyr::rbind.fill() %>%
       as_tibble() %>%
       dplyr::select(stn, date, scale_9, threshold_9, maxtp_0, maxtp_1, maxtp_2, maxtp_3) %>%
-      write.csv(paste0("Data/processed/bootstrap_data/bts_under_gpd_models/num_quantiles_",num_quantiles,"_bts_",b, ".csv"), row.names=FALSE)
+      write.csv(paste0("Data/processed/bootstrap_data/bts_under_gpd_models/num_quantiles_",num_quantiles,"_bts_",b, ".csv"), row.names=FALSE, col.names = FALSE)
   }
