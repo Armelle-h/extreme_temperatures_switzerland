@@ -19,13 +19,18 @@ Predicting high temperatures is crucial for risk management, as they can impact 
 - The folder [to complete](name.R) contains ...
 - The folder [to complete](name.R) contains ..
 
+## Usage 
+- What should be run first 
+
 ## Dependencies:
 - Main package used 1
 - Main package used 2
   
 ---
+## Main references
+- reference 1 
 
 ## Acknowledgments
 
 - My sincere gratitude to Professor Anthony C. Davison, my thesis advisor and supervisor.
-- I am grateful to Daire Healy for providing public access to their code (https://github.com/dairer/Extreme-Irish-Summer-Temperatures/tree/main), which highly supported this work.
+- I am grateful to Daire Healy  (put their github reference) for providing public access to their code (https://github.com/dairer/Extreme-Irish-Summer-Temperatures/tree/main), which highly supported this work.
