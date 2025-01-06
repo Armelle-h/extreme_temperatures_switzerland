@@ -3,6 +3,7 @@
 *.nc
 .RData
 .Rhistory
+*.png
 
 output/
 Data/
