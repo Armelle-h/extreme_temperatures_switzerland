@@ -8,3 +8,6 @@
 output/*
 Data/*
 
+output\*
+Data\*
+
