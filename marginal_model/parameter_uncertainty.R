@@ -11,14 +11,14 @@ tau_list = sort(unique(quant_reg_bts$tau))
 #histogram for the quantile regression 
 
 for (tau_val in tau_list){
-  file_path = paste0("pictures/beta_2, tau =",tau_val)
+  file_path = paste0("uncertainty_pictures/beta_2_tau_", tau_val, ".png")
   
   png(filename = file_path, width = 443, height = 290)
   
   df = quant_reg_bts %>%
     filter(tau == tau_val)
   
-  hist( df$beta_2, breaks = 100,
+  hist( df$beta_2, breaks = 25,
         main = paste0("beta_2, tau =", tau_val), 
         xlab = "beta_2", 
         ylab = "Frequency")
@@ -35,15 +35,49 @@ for (bts_num in seq(1, 100)){
   exceedance_proba_bts = rbind(exceedance_proba_bts_num, exceedance_proba_bts)
 }
 
-#histogram for threshold exceedance (one histogram per station)
+colnames(exceedance_proba_bts) = c("bts", "stn", "year", "proba")
+
+#threshold exceedance varies with year and stn 
+stn_list = sort(unique(exceedance_proba_bts$stn))
+year_list = sort(unique(exceedance_proba_bts$year))
+
+set.seed(123)
+selected_stn_list <- sample(stn_list, size = 10, replace = FALSE)
+selected_year_list <- sample(year_list, size = 10, replace = FALSE)
+
+
+for (stn_val in selected_stn_list) {
+  for (year_val in selected_year_list) {
+
+  file_path = paste0("uncertainty_pictures/exceedance_proba_", stn_val, "_",year_val,".png")
+  
+  png(filename = file_path, width = 443, height = 290)
+  
+  df = exceedance_proba_bts %>%
+    filter(stn == stn_val, year == year_val)
+  
+  hist( df$proba, breaks = 25,
+        main = paste0(stn_val,"_", year_val), 
+        xlab = "exceedance_proba", 
+        ylab = "Frequency")
+  
+  dev.off()
+  }
+}
 
 
 fit_gpd_bts = read.csv("output/gpd_model_fits/bts/model_2_bts.csv", header = FALSE) %>%
   unique()
 colnames(fit_gpd_bts) = c("bts", "beta_0", "beta_1", "beta_2", "beta_3", "beta_4", "xi" )
 
+file_path = paste0("uncertainty_pictures/gpd_xi.png")
+
+png(filename = file_path, width = 443, height = 290)
+
 #histogram for the gpd parameters 
-hist( fit_gpd_bts$xi, breaks = 100,
+hist( fit_gpd_bts$xi, breaks = 25,
      main = "xi", 
      xlab = "xi", 
      ylab = "Frequency")
+
+dev.off()
