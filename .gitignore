@@ -5,6 +5,6 @@
 .Rhistory
 *.png
 
-output/
-Data/
-Data\
+output/*
+Data/*
+
