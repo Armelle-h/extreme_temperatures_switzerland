@@ -38,4 +38,4 @@ The main packages used are
 ## Acknowledgments
 
 - My sincere gratitude to Professor Anthony C. Davison, my master thesis advisor and supervisor at EPFL.
-- I am grateful to Daire Healy for providing public access to their code (https://github.com/dairer/Extreme-Irish-Summer-Temperatures/tree/main), which highly supported this work.
+- I am grateful to Dr. Daire Healy for providing public access to their code (https://github.com/dairer/Extreme-Irish-Summer-Temperatures/tree/main), associated with their paper "Inference for extreme spatial temperature events in a changing climate with application to Ireland" which highly supported this work.
