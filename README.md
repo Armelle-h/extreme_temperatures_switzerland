@@ -16,15 +16,20 @@ Predicting high temperatures is crucial for risk management, as they can impact 
 ---
 
 ## Code:
-- The folder [to complete](name.R) contains ...
-- The folder [to complete](name.R) contains ..
+- The folder [marginal_model] contains ...
+- The folder [spatial_model] contains ..
 
 ## Usage 
-- What should be run first 
+- The folder [marginal_model] should be run before the folder [spatial_model].
+- In the folder [marginal_model], the files related to the bulk model should be run before the files related to the gpd model.
+- In the folder [spatial_model], (to complete once I've done file cleaning)
+- The file [simulPareto.R] in the folder [mvPot] is an adaptation of the function "simulPareto" from the package MvPot (https://github.com/r-fndv/mvPot)
 
 ## Dependencies:
-- Main package used 1
-- Main package used 2
+The main packages used are 
+- tidyverse
+- evgam
+- (to complete)
   
 ---
 ## Main references
@@ -32,5 +37,5 @@ Predicting high temperatures is crucial for risk management, as they can impact 
 
 ## Acknowledgments
 
-- My sincere gratitude to Professor Anthony C. Davison, my thesis advisor and supervisor.
-- I am grateful to Daire Healy  (put their github reference) for providing public access to their code (https://github.com/dairer/Extreme-Irish-Summer-Temperatures/tree/main), which highly supported this work.
+- My sincere gratitude to Professor Anthony C. Davison, my master thesis advisor and supervisor at EPFL.
+- I am grateful to Daire Healy for providing public access to their code (https://github.com/dairer/Extreme-Irish-Summer-Temperatures/tree/main), which highly supported this work.
