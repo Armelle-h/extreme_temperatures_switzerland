@@ -9,7 +9,7 @@ library(tidyverse)
 library(gridExtra)
 
 #loading the custom functions
-source('marginal_model/gpd_models.R') #for now, might need to do a bit of relocating
+source('marginal_model/gpd_models.R') 
 
 num_quantiles = 30
 

@@ -6,14 +6,13 @@ library(scales)
 setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 
 
-marg_mod = 'mod_1'
-temp_conditioned_on = 28
+marg_mod = 'mod_0'
 obs_sites = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv") %>%
   select("stn", "longitude_proj", "latitude_proj")%>%
   unique()
 
 yr = 2022
-nu_name = "015"
+nu_name = "012"
 robust = TRUE 
 
 if (robust == TRUE){
@@ -46,7 +45,7 @@ if(file.exists(paste0("output/simulations/rescaled_simulations_on_obs_grid/", tr
 }
 
 yr = 1971
-nu_name = "015"
+nu_name = "012"
 robust = TRUE 
 
 if (robust == TRUE){
@@ -80,22 +79,22 @@ tibble(temp = temp_conditioned_on, prop_ex_1971, prop_ex_2022) %>%
   write_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod,"_temp_condtioned_on_",temp_conditioned_on,".csv"))
 }
 
-for (temp_conditioned_on in seq(27, 35)){
+for (temp_conditioned_on in seq(35, 43)){
   proportion(temp_conditioned_on)
 }
 
 
-true_dat = rbind(read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_27.csv")),
-                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_28.csv")),
-                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_29.csv")),
-                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_30.csv")),
-                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_31.csv")),
-                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_32.csv")),
-                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_33.csv")),
-                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_34.csv")),
-                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_35.csv")))
+true_dat = rbind(read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_35.csv")),
+                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_36.csv")),
+                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_37.csv")),
+                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_38.csv")),
+                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_39.csv")),
+                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_40.csv")),
+                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_41.csv")),
+                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_42.csv")),
+                 read_csv(paste0("output/simulations/simulation_summary/nu_", nu_name,"_prop_exceedance_model_", true_folder,"_",marg_mod ,"_temp_condtioned_on_43.csv")))
 
-prob_observing_T = read_csv(paste0("output/importance_sampling/prob_extreme_temp_imp_samp_",marg_mod,".csv"),
+prob_observing_T = read_csv(paste0("output/importance_sampling/prob_extreme_temp_imp_samp_nu_", nu_name,"_", marg_mod, ".csv"),
                             col_names = c('temp', 'p_1971', 'p_2022'))%>%
   pivot_longer(-temp) %>%
   mutate(year = str_remove(name,"p_")) 
@@ -135,9 +134,9 @@ plot1 <- ggplot() +
               aes(temp, `1971_actual`, col = '1971', linetype = '1971'), se = FALSE) +
   geom_smooth(data = true_dat %>% filter(lab == 'conditioned'),
               aes(temp, `2022_actual`, col = '2022', linetype = '2022'), se = FALSE) +
-  scale_x_continuous(limits = c(27, 34.5),
-                     breaks = c(28, 30, 32, 34),
-                     labels = paste0(c(28, 30, 32, 34), "°C")) +
+  scale_x_continuous(limits = c(35, 43),
+                     breaks = c(35, 37, 39, 41),
+                     labels = paste0(c(36, 38, 40, 42), "°C")) +
   labs(x = "Temperature",
        y = expression(E[o]),
        col = "Year",
@@ -154,9 +153,9 @@ plot2 <- ggplot() +
               aes(temp, `1971_actual`, col = '1971', linetype = '1971'), se = FALSE) +
   geom_smooth(data = true_dat %>% filter(lab == 'unconditioned'),
               aes(temp, `2022_actual`, col = '2022', linetype = '2022'), se = FALSE) +
-  scale_x_continuous(limits = c(27, 34.5),
-                     breaks = c(28, 30, 32, 34),
-                     labels = paste0(c(28, 30, 32, 34), "°C")) +
+  scale_x_continuous(limits = c(35, 43),
+                     breaks = c(35, 37, 39, 41),
+                     labels = paste0(c(36, 38, 40, 42), "°C")) +
   scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
                 labels = trans_format("log10", math_format(10^.x))) +
   labs(x = "Temperature",

@@ -104,16 +104,14 @@ obs_data = obs_data %>%
   group_by(stn)%>%
   mutate(obs_quant_9 = quantile(maxtp, 0.9))
 
-#obs_data$threshold_9 = quantile_model_fit$location$fitted
+threshold_9_df = readRDS(paste0("Data/processed/obs_data_for_bulk_model_num_quantiles_",num_quantiles,".csv")) %>%
+  select(stn, threshold_9) %>%
+  filter(stn %in% c("MAH", "JUN", "COV", "LSN"))%>%
+  unique()
 
-quantile_model <-  maxtp ~ clim_thresh_value_9
-quantile_model_fit <- evgam(quantile_model, obs_data, family = "ald", ald.args = list(tau = 0.9))
+obs_data$obs_threshold_2 = obs_data$threshold_9/2 + obs_data$obs_quant_9/2
 
-obs_data$obs_threshold = quantile_model_fit$location$fitted
-
-obs_data$obs_threshold_no_reg = obs_data$clim_thresh_value_9/2 + obs_data$obs_quant_9/2
-
-stn_name = "ZBO"
+stn_name = "COV"
 
 # Plotting histogram of col3 in the filtered data
 hist((obs_data %>%filter(stn == stn_name))$maxtp,
@@ -123,9 +121,9 @@ hist((obs_data %>%filter(stn == stn_name))$maxtp,
      col = "skyblue",
      border = "black")
 
-abline(v = (obs_data %>%filter(stn == stn_name))$obs_threshold[[1]], col = "purple", lwd = 2, lty = 2) #threshold with ALD
+abline(v = (obs_data %>%filter(stn == stn_name))$threshold_9[[1]], col = "purple", lwd = 2, lty = 2) #threshold with ALD
 
-abline(v = (obs_data %>%filter(stn == stn_name))$obs_threshold_no_reg[[1]], col = "black", lwd = 2, lty = 2) #threshold with both clim and obs
+abline(v = (obs_data %>%filter(stn == stn_name))$obs_threshold_2[[1]], col = "black", lwd = 2, lty = 2) #threshold with both clim and obs
 
 abline(v = (obs_data %>%filter(stn == stn_name))$obs_quant_9[[1]], col = "red", lwd = 2, lty = 2) #threshold with obs
 
