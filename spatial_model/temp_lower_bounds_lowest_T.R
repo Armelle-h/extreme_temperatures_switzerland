@@ -19,3 +19,13 @@ obs_data_not_extreme_dates = obs_data %>%
 
 obs_data_extreme_dates = obs_data %>%
   filter(date %in% extreme_dates$date)
+
+#investigating lower temperatures
+
+standardised_data = read.csv(paste0("Data/processed/plain_obs_data_pareto_frechet_scale_", marg_mod,".csv"))%>%
+  select(stn, date, pareto_marg, maxtp)
+
+spatial_threshold = readRDS(paste0("Data/spatial_threshold_", marg_mod,".rds"))
+
+standardised_data_filtered = standardised_data%>%
+  filter(pareto_marg>spatial_threshold)

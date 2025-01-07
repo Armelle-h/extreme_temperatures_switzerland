@@ -26,6 +26,47 @@ for (tau_val in tau_list){
   dev.off()
 }
 
+#uncertainty
+
+quant_reg_model_pars = read_csv(paste0("Data/processed/glob_anomaly_quantile_model_fit_pars_num_quantiles_30.csv"),
+                                col_names = c('tau', 'beta_0', 'beta_1', 'beta_2'))
+
+columns_to_compute <- c('beta_0', 'beta_1', 'beta_2')
+
+quantile_005 <- quant_reg_bts %>%
+  group_by(tau) %>%
+  summarise(across(all_of(columns_to_compute), 
+                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.05), 
+                   .names = "quantile_005_{col}"))
+
+quantile_095 <- quant_reg_bts %>%
+  group_by(tau) %>%
+  summarise(across(all_of(columns_to_compute), 
+                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.95), 
+                   .names = "quantile_095_{col}"))
+
+#debugging, else issue with the left join
+quantile_005$tau = quant_reg_model_pars$tau
+quantile_095$tau = quant_reg_model_pars$tau
+
+final_df = quant_reg_model_pars %>%
+  left_join(quantile_005, by = "tau")%>%
+  left_join(quantile_095, by = "tau")
+
+ggplot(final_df, aes(x = tau)) +
+  geom_line(aes(y = beta_0, color = "Beta_0")) +
+  geom_ribbon(aes(ymin = quantile_005_beta_0, ymax = quantile_095_beta_0), fill = "blue", alpha = 0.2) +
+  geom_line(aes(y = beta_1, color = "Beta_1")) +
+  geom_ribbon(aes(ymin = quantile_005_beta_1, ymax = quantile_095_beta_1), fill = "red", alpha = 0.2) +
+  geom_line(aes(y = beta_2, color = "Beta_2")) +
+  geom_ribbon(aes(ymin = quantile_005_beta_2, ymax = quantile_095_beta_2), fill = "green", alpha = 0.2) +
+  scale_color_manual(values = c("Beta_0" = "blue", "Beta_1" = "red", "Beta_2" = "green")) +
+  labs(color = "Beta Curves") +
+  xlab("tau") +  
+  ylab("values") +
+  theme_minimal()
+
+#exceedance proba
 
 exceedance_proba_bts = data.frame(bts = numeric(), stn = character(), year = numeric(), ex_proba = numeric())
 
@@ -65,6 +106,58 @@ for (stn_val in selected_stn_list) {
   }
 }
 
+#plotting the threshold uncertainty for a random sample of 30 years and 10 stations 
+
+set.seed(456)
+stn_list = sort(unique(exceedance_proba_bts$stn))
+selected_stn_list <- sample(stn_list, size = 10, replace = FALSE)
+
+for (stn_val in selected_stn_list){
+
+exceedance_proba_bts_filter = exceedance_proba_bts %>%
+  filter(stn == stn_val)
+
+thresh_exceedance = read_csv("Data/processed/glob_anomaly_thresh_exceedance_lambda_num_quantiles_30.csv")%>%
+  filter(stn == stn_val & year %in% exceedance_proba_bts_filter$year )
+
+columns_to_compute = c("proba")
+
+quantile_005 <- exceedance_proba_bts_filter %>%
+  group_by(year, stn) %>%
+  summarise(across(all_of(columns_to_compute), 
+                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.05), 
+                   .names = "quantile_005"))
+
+quantile_095 <- exceedance_proba_bts_filter %>%
+  group_by(year, stn) %>%
+  summarise(across(all_of(columns_to_compute), 
+                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.95), 
+                   .names = "quantile_095"))
+
+final_df = thresh_exceedance %>%
+  left_join(quantile_005, by = c("stn", "year"))%>%
+  left_join(quantile_095, by = c("stn", "year"))
+
+p = ggplot(final_df, aes(x = year)) +
+  geom_line(aes(y = thresh_exceedance_9)) +  # Line plot for thresh_exceedance_9
+  geom_ribbon(aes(ymin = `quantile_005`, ymax = `quantile_095`), alpha = 0.2) +  # Ribbon for quantiles
+  labs(x = "Year", y = "Exceedance Probability", title = paste0(stn_val)) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5))
+
+ggsave(paste0("plot/exceedance_plot_", stn_val, ".png"), plot = p, width = 4, height = 3.5, dpi = 300, bg = "white")
+}
+
+#gpd parameters
+
+compute_quantiles <- function(column) {
+  mu <- mean(column)   
+  sigma <- sd(column) 
+  p <- c(0.05, 0.95)   
+  quantiles <- mu + sigma * qnorm(p)
+  return(quantiles)
+}
 
 fit_gpd_bts = read.csv("output/gpd_model_fits/bts/model_2_bts.csv", header = FALSE) %>%
   unique()
@@ -81,3 +174,14 @@ hist( fit_gpd_bts$xi, breaks = 25,
      ylab = "Frequency")
 
 dev.off()
+
+#uncertainty gpd parameters beta_0, beta_1, beta_2, beta_3, beta_4, xi
+
+print(compute_quantiles(fit_gpd_bts$beta_0))
+print(compute_quantiles(fit_gpd_bts$beta_1))
+print(compute_quantiles(fit_gpd_bts$beta_2))
+print(compute_quantiles(fit_gpd_bts$beta_3))
+print(compute_quantiles(fit_gpd_bts$beta_4))
+print(compute_quantiles(fit_gpd_bts$xi))
+
+
