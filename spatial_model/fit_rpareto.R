@@ -8,7 +8,7 @@ library(optimx)
 library(foreach)
 library(sf)
 
-marg_mod = "mod_0"
+marg_mod = "mod_1"
 
 nu_val = 0.12
 nu_name = "012"
@@ -98,7 +98,7 @@ ngll = function(pars){
 
 data_for_rpareto = readRDS(paste0("Data/processed/data_for_rpareto/true/robust_plain_data_for_rpareto_", marg_mod))
 .GlobalEnv$exceedances <- data_for_rpareto$exceedances
-.GlobalEnv$exceedances_locs <- data_for_rpareto$exceedances_locs #this is a list of location id (just the id, not the longitude-latitude pair)
+.GlobalEnv$exceedances_locs <- data_for_rpareto$exceedances_locs #this is a list of location id
 .GlobalEnv$HRD_ll <- HRD_ll
 
 #defining the temporal covariates, not great to use the year as covariate, for now dropping, might come back to it later

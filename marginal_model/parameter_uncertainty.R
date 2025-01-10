@@ -33,33 +33,33 @@ quant_reg_model_pars = read_csv(paste0("Data/processed/glob_anomaly_quantile_mod
 
 columns_to_compute <- c('beta_0', 'beta_1', 'beta_2')
 
-quantile_005 <- quant_reg_bts %>%
+quantile_0025 <- quant_reg_bts %>%
   group_by(tau) %>%
   summarise(across(all_of(columns_to_compute), 
-                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.05), 
-                   .names = "quantile_005_{col}"))
+                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.025), 
+                   .names = "quantile_0025_{col}"))
 
-quantile_095 <- quant_reg_bts %>%
+quantile_0975 <- quant_reg_bts %>%
   group_by(tau) %>%
   summarise(across(all_of(columns_to_compute), 
-                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.95), 
-                   .names = "quantile_095_{col}"))
+                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.975), 
+                   .names = "quantile_0975_{col}"))
 
 #debugging, else issue with the left join
-quantile_005$tau = quant_reg_model_pars$tau
-quantile_095$tau = quant_reg_model_pars$tau
+quantile_0025$tau = quant_reg_model_pars$tau
+quantile_0975$tau = quant_reg_model_pars$tau
 
 final_df = quant_reg_model_pars %>%
-  left_join(quantile_005, by = "tau")%>%
-  left_join(quantile_095, by = "tau")
+  left_join(quantile_0025, by = "tau")%>%
+  left_join(quantile_0975, by = "tau")
 
 ggplot(final_df, aes(x = tau)) +
   geom_line(aes(y = beta_0, color = "Beta_0")) +
-  geom_ribbon(aes(ymin = quantile_005_beta_0, ymax = quantile_095_beta_0), fill = "blue", alpha = 0.2) +
+  geom_ribbon(aes(ymin = quantile_0025_beta_0, ymax = quantile_0975_beta_0), fill = "blue", alpha = 0.2) +
   geom_line(aes(y = beta_1, color = "Beta_1")) +
-  geom_ribbon(aes(ymin = quantile_005_beta_1, ymax = quantile_095_beta_1), fill = "red", alpha = 0.2) +
+  geom_ribbon(aes(ymin = quantile_0025_beta_1, ymax = quantile_0975_beta_1), fill = "red", alpha = 0.2) +
   geom_line(aes(y = beta_2, color = "Beta_2")) +
-  geom_ribbon(aes(ymin = quantile_005_beta_2, ymax = quantile_095_beta_2), fill = "green", alpha = 0.2) +
+  geom_ribbon(aes(ymin = quantile_0025_beta_2, ymax = quantile_0975_beta_2), fill = "green", alpha = 0.2) +
   scale_color_manual(values = c("Beta_0" = "blue", "Beta_1" = "red", "Beta_2" = "green")) +
   labs(color = "Beta Curves") +
   xlab("tau") +  
@@ -112,6 +112,10 @@ set.seed(456)
 stn_list = sort(unique(exceedance_proba_bts$stn))
 selected_stn_list <- sample(stn_list, size = 10, replace = FALSE)
 
+legend = read.csv("Data/Observed_data/1971_2022_JJA_obs_legend.csv")%>%
+  select(stn, Nom)%>%
+  unique()
+
 for (stn_val in selected_stn_list){
 
 exceedance_proba_bts_filter = exceedance_proba_bts %>%
@@ -122,26 +126,30 @@ thresh_exceedance = read_csv("Data/processed/glob_anomaly_thresh_exceedance_lamb
 
 columns_to_compute = c("proba")
 
-quantile_005 <- exceedance_proba_bts_filter %>%
+quantile_0025 <- exceedance_proba_bts_filter %>%
   group_by(year, stn) %>%
   summarise(across(all_of(columns_to_compute), 
-                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.05), 
-                   .names = "quantile_005"))
+                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.025), 
+                   .names = "quantile_0025"))
 
-quantile_095 <- exceedance_proba_bts_filter %>%
+quantile_0975 <- exceedance_proba_bts_filter %>%
   group_by(year, stn) %>%
   summarise(across(all_of(columns_to_compute), 
-                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.95), 
-                   .names = "quantile_095"))
+                   ~ mean(., na.rm = TRUE) + sd(., na.rm = TRUE) * qnorm(0.975), 
+                   .names = "quantile_0975"))
 
 final_df = thresh_exceedance %>%
-  left_join(quantile_005, by = c("stn", "year"))%>%
-  left_join(quantile_095, by = c("stn", "year"))
+  left_join(quantile_0025, by = c("stn", "year"))%>%
+  left_join(quantile_0975, by = c("stn", "year"))
+
+name_stn = legend %>%
+  filter(stn == stn_val)%>%
+  pull(Nom)
 
 p = ggplot(final_df, aes(x = year)) +
   geom_line(aes(y = thresh_exceedance_9)) +  # Line plot for thresh_exceedance_9
-  geom_ribbon(aes(ymin = `quantile_005`, ymax = `quantile_095`), alpha = 0.2) +  # Ribbon for quantiles
-  labs(x = "Year", y = "Exceedance Probability", title = paste0(stn_val)) +
+  geom_ribbon(aes(ymin = `quantile_0025`, ymax = `quantile_0975`), alpha = 0.2) +  # Ribbon for quantiles
+  labs(x = "Year", y = "Exceedance Probability", title = paste0(name_stn)) +
   theme_minimal() +
   theme(legend.position = "none",
         plot.title = element_text(hjust = 0.5))
@@ -154,7 +162,7 @@ ggsave(paste0("plot/exceedance_plot_", stn_val, ".png"), plot = p, width = 4, he
 compute_quantiles <- function(column) {
   mu <- mean(column)   
   sigma <- sd(column) 
-  p <- c(0.05, 0.95)   
+  p <- c(0.025, 0.975)   
   quantiles <- mu + sigma * qnorm(p)
   return(quantiles)
 }

@@ -5,7 +5,7 @@ setwd("C:/Users/HOURS/Desktop/PDM/extreme_temperatures_switzerland")
 library(tidyverse)
 library(sf)
 
-marg_mod = "mod_0"
+marg_mod = "mod_1"
   
   legend_data = read.csv("Data/Observed_data/plain_1971_2022_JJA_obs_legend.csv")
   
@@ -166,6 +166,7 @@ marg_mod = "mod_0"
     group_map(~{
       
       # our "conditional" site at the top of the list
+      #if it is not in the list, the date is ignored
       if("KOP" %in% .x$stn){
         c(.x %>% filter(stn == "KOP") %>% pull(pareto_marg),
           .x %>% filter(stn != "KOP") %>% pull(pareto_marg))
